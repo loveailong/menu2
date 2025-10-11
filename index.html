@@ -1,28 +1,71 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<title>我的图片相册</title>
-<style>
-  body { text-align:center; background:#f8f8f8; font-family:sans-serif; }
-  img { max-width:90%; margin:10px auto; border-radius:10px; box-shadow:0 0 8px #aaa; }
-</style>
+  <meta charset="UTF-8">
+  <title>图片轮播展示</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .slider {
+      width: 90vw;
+      height: 90vh;
+      position: relative;
+      overflow: hidden;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+    }
+    .slider img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      position: absolute;
+      opacity: 0;
+      transition: opacity 1.2s ease-in-out;
+    }
+    .slider img.active {
+      opacity: 1;
+    }
+  </style>
 </head>
 <body>
-<h2>📸 我的图片相册</h2>
-<div id="gallery"></div>
+  <div class="slider" id="slider"></div>
 
-<script>
-const folder = "images/";
-const files = [
-  "1.jpg", "2.png" // 把你上传的图片文件名写在这里
-];
-const div = document.getElementById("gallery");
-files.forEach(f => {
-  const img = document.createElement("img");
-  img.src = folder + f;
-  div.appendChild(img);
-});
-</script>
+  <script>
+    async function loadImages() {
+      const imageFolder = 'images';
+      const response = await fetch(`https://api.github.com/repos/loveailong/menu/contents/${imageFolder}`);
+      const files = await response.json();
+
+      const slider = document.getElementById('slider');
+      const imageUrls = files
+        .filter(file => file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i))
+        .map(file => file.download_url);
+
+      imageUrls.forEach((url, i) => {
+        const img = document.createElement('img');
+        img.src = url;
+        if (i === 0) img.classList.add('active');
+        slider.appendChild(img);
+      });
+
+      let index = 0;
+      setInterval(() => {
+        const images = slider.querySelectorAll('img');
+        if (images.length === 0) return;
+        images[index].classList.remove('active');
+        index = (index + 1) % images.length;
+        images[index].classList.add('active');
+      }, 3000);
+    }
+
+    loadImages();
+  </script>
 </body>
 </html>
