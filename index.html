@@ -13,6 +13,7 @@
       height: 100vh;
       overflow: hidden;
       flex-direction: column;
+      touch-action: pan-y; /* 防止浏览器滑动冲突 */
     }
     .slider {
       width: 90vw;
@@ -64,11 +65,13 @@
   <script>
     const username = "loveailong";   // 👈 修改为你的 GitHub 用户名
     const repo = "menu";             // 👈 修改为你的仓库名
-    const folder = "images";         // 图片所在的文件夹名
+    const folder = "images";         // 👈 图片所在文件夹名
 
     let index = 0;
     let images = [];
     let timer;
+    let startX = 0;
+    let endX = 0;
 
     async function loadImages() {
       const url = `https://api.github.com/repos/${username}/${repo}/contents/${folder}`;
@@ -93,6 +96,7 @@
       });
 
       startAutoPlay();
+      addSwipeSupport();
     }
 
     function showImage(newIndex) {
@@ -122,6 +126,28 @@
       showImage(index + 1);
       resetTimer();
     });
+
+    function addSwipeSupport() {
+      const slider = document.getElementById("slider");
+
+      slider.addEventListener("touchstart", e => {
+        startX = e.touches[0].clientX;
+      });
+
+      slider.addEventListener("touchend", e => {
+        endX = e.changedTouches[0].clientX;
+        const diff = endX - startX;
+
+        if (Math.abs(diff) > 50) { // 滑动距离超过50px才算有效滑动
+          if (diff > 0) {
+            showImage(index - 1); // 向右滑，上一张
+          } else {
+            showImage(index + 1); // 向左滑，下一张
+          }
+          resetTimer();
+        }
+      });
+    }
 
     loadImages();
   </script>
