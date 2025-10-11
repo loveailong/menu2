@@ -1,1 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>我的图片相册</title>
+<style>
+  body { text-align:center; background:#f8f8f8; font-family:sans-serif; }
+  img { max-width:90%; margin:10px auto; border-radius:10px; box-shadow:0 0 8px #aaa; }
+</style>
+</head>
+<body>
+<h2>📸 我的图片相册</h2>
+<div id="gallery"></div>
 
+<script>
+const folder = "images/";
+const files = [
+  "1.jpg", "2.png" // 把你上传的图片文件名写在这里
+];
+const div = document.getElementById("gallery");
+files.forEach(f => {
+  const img = document.createElement("img");
+  img.src = folder + f;
+  div.appendChild(img);
+});
+</script>
+</body>
+</html>
