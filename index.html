@@ -11,21 +11,56 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      min-height: 100vh;
       overflow: hidden;
       flex-direction: column;
       touch-action: manipulation;
       /* 允许双指缩放 */
+      padding: 10px;
+      box-sizing: border-box;
     }
 
     .slider {
-      width: 90vw;
-      height: 85vh;
+      width: 100%;
+      max-width: 90vw;
+      height: 70vh;
+      max-height: 600px;
       position: relative;
       overflow: hidden;
       border-radius: 12px;
       box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
       touch-action: pan-x pan-y pinch-zoom;
+    }
+
+    /* 手机端优化 */
+    @media (max-width: 768px) {
+      body {
+        padding: 5px;
+      }
+
+      .slider {
+        width: 95vw;
+        height: 60vh;
+        border-radius: 8px;
+      }
+
+      .buttons {
+        margin-top: 15px;
+        gap: 15px;
+      }
+
+      button {
+        padding: 12px 20px;
+        font-size: 14px;
+        border-radius: 6px;
+        min-width: 80px;
+      }
+
+      .close {
+        top: 10px;
+        right: 20px;
+        font-size: 30px;
+      }
     }
 
     .slider img {
@@ -131,6 +166,7 @@
     let initialDistance = 0;
     let currentScale = 1;
     let isZooming = false;
+    let zoomTimer = null;
 
     async function loadImages() {
       const url = `https://api.github.com/repos/${username}/${repo}/contents/${folder}`;
@@ -168,9 +204,15 @@
       const sliderImgs = document.querySelectorAll(".slider img");
       if (sliderImgs.length === 0) return;
 
+      // 重置当前图片的缩放
+      sliderImgs[index].style.transform = "scale(1)";
       sliderImgs[index].classList.remove("active");
+
       index = (newIndex + images.length) % images.length;
       sliderImgs[index].classList.add("active");
+
+      // 重置缩放相关变量
+      currentScale = 1;
     }
 
     function startAutoPlay() {
@@ -179,6 +221,7 @@
 
     function resetTimer() {
       clearInterval(timer);
+      clearTimeout(zoomTimer);
       startAutoPlay();
     }
 
@@ -209,9 +252,14 @@
           startX = e.touches[0].clientX;
           isZooming = false;
         } else if (e.touches.length === 2) {
-          // 双指触摸
+          // 双指触摸 - 暂停自动播放
+          e.preventDefault();
           initialDistance = getDistance(e.touches[0], e.touches[1]);
           isZooming = true;
+
+          // 暂停自动播放
+          clearInterval(timer);
+          clearTimeout(zoomTimer);
 
           const activeImg = document.querySelector(".slider img.active");
           if (activeImg) {
@@ -249,14 +297,19 @@
             }
             resetTimer();
           }
-        } else if (e.touches.length < 2) {
-          // 双指缩放结束
+        } else if (e.touches.length < 2 && isZooming) {
+          // 双指缩放结束 - 延迟恢复自动播放
           isZooming = false;
           const activeImg = document.querySelector(".slider img.active");
           if (activeImg) {
             currentScale = activeImg.style.transform ?
               parseFloat(activeImg.style.transform.match(/scale\(([^)]+)\)/)?.[1] || 1) : 1;
           }
+
+          // 缩放结束后3秒恢复自动播放
+          zoomTimer = setTimeout(() => {
+            startAutoPlay();
+          }, 3000);
         }
       });
 
@@ -266,6 +319,10 @@
         const activeImg = document.querySelector(".slider img.active");
         if (!activeImg) return;
 
+        // 暂停自动播放
+        clearInterval(timer);
+        clearTimeout(zoomTimer);
+
         const currentScale = activeImg.style.transform ?
           parseFloat(activeImg.style.transform.match(/scale\(([^)]+)\)/)?.[1] || 1) : 1;
 
@@ -273,6 +330,11 @@
         const newScale = Math.max(0.5, Math.min(3, currentScale + delta));
 
         activeImg.style.transform = `scale(${newScale})`;
+
+        // 滚轮缩放后3秒恢复自动播放
+        zoomTimer = setTimeout(() => {
+          startAutoPlay();
+        }, 3000);
       });
     }
 
