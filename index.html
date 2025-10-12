@@ -195,7 +195,7 @@
       const modalImg = document.getElementById("modalImage");
       const closeBtn = document.getElementById("closeBtn");
       const slider = document.getElementById("slider");
-      
+
       let scale = 1;
       let lastTap = 0;
       let isDragging = false;
@@ -211,6 +211,7 @@
       let sliderTranslateY = 0;
       let sliderLastDistance = 0;
       let sliderIsDragging = false;
+      let sliderIsZooming = false; // 标记是否正在进行缩放
       let touchStartX = 0;
       let touchStartY = 0;
       let touchStartTime = 0;
@@ -220,12 +221,18 @@
       // 触摸开始
       slider.addEventListener("touchstart", (e) => {
         if (e.touches.length === 2) {
-          // 双指缩放
+          // 双指缩放开始
+          sliderIsZooming = true;
           sliderLastDistance = getDistance(e.touches[0], e.touches[1]);
+          console.log("开始双指缩放");
         } else if (e.touches.length === 1) {
+          // 单指触摸
+          sliderIsZooming = false;
           touchStartX = e.touches[0].clientX;
           touchStartY = e.touches[0].clientY;
           touchStartTime = Date.now();
+          console.log("单指触摸开始");
+          
           if (sliderScale > 1) {
             sliderIsDragging = true;
             dragStartX = touchStartX - sliderTranslateX;
@@ -236,7 +243,7 @@
 
       // 触摸移动
       slider.addEventListener("touchmove", (e) => {
-        if (e.touches.length === 2) {
+        if (e.touches.length === 2 && sliderIsZooming) {
           // 双指缩放
           e.preventDefault();
           const distance = getDistance(e.touches[0], e.touches[1]);
@@ -244,6 +251,7 @@
           sliderScale = Math.min(Math.max(1, sliderScale * ratio), 5);
           sliderLastDistance = distance;
           updateSliderTransform();
+          console.log("缩放中，scale:", sliderScale);
         } else if (sliderIsDragging && e.touches.length === 1) {
           // 拖动查看
           e.preventDefault();
@@ -264,10 +272,7 @@
           const absDiffY = Math.abs(diffY);
           const duration = Date.now() - touchStartTime;
           
-          console.log(`touchend - scale: ${sliderScale}, diffX: ${absDiffX}, diffY: ${absDiffY}, duration: ${duration}, lastDistance: ${sliderLastDistance}`);
-          
-          // 判断是否进行了双指缩放操作
-          const wasZooming = sliderLastDistance > 0;
+          console.log(`touchend - scale: ${sliderScale}, isZooming: ${sliderIsZooming}, diffX: ${absDiffX}, diffY: ${absDiffY}, duration: ${duration}`);
           
           // 如果缩放比例恢复到1或接近1，重置位置
           if (sliderScale <= 1.1) {
@@ -280,35 +285,37 @@
           sliderIsDragging = false;
           
           // 只在没有进行缩放操作且当前是正常比例时处理滑动和点击
-          console.log(`sliderScale 当前值: ${sliderScale}, wasZooming: ${wasZooming}`);
-          if (sliderScale === 1 && !wasZooming) {
+          if (sliderScale === 1 && !sliderIsZooming) {
             // 水平滑动距离超过50px：切换图片
             if (absDiffX > 50 && absDiffX > absDiffY && duration < 500) {
-              console.log("触发滑动切换");
+              console.log("✅ 触发滑动切换");
               if (diffX > 0) {
-                showImage(index - 1); // 向右滑，上一张
-              } else {
-                showImage(index + 1); // 向左滑，下一张
-              }
-              resetTimer();
-            }
+            showImage(index - 1); // 向右滑，上一张
+          } else {
+            showImage(index + 1); // 向左滑，下一张
+          }
+          resetTimer();
+        }
             // 移动距离小且时间短：点击打开图片
-            else if (absDiffX < 15 && absDiffY < 15 && duration < 300) {
-              console.log("触发点击");
+            else if (absDiffX < 20 && absDiffY < 20 && duration < 400) {
+              console.log("✅ 触发点击");
               const target = document.elementFromPoint(touchEndX, touchEndY);
               console.log("target:", target, target?.tagName, target?.classList);
               if (target && target.tagName === "IMG" && target.classList.contains("active")) {
-                console.log("打开模态框，图片 src:", target.src);
+                console.log("✅ 打开模态框，图片 src:", target.src);
                 openModal(target.src);
               } else {
-                console.log("未找到有效的图片目标");
+                console.log("❌ 未找到有效的图片目标");
               }
+            } else {
+              console.log("⚠️ 移动距离或时间不符合点击条件");
             }
           } else {
-            console.log("sliderScale 不是 1 或正在缩放，跳过点击处理");
+            console.log(`❌ 跳过点击处理 - sliderScale: ${sliderScale}, isZooming: ${sliderIsZooming}`);
           }
           
-          // 重置 lastDistance
+          // 重置缩放标记和距离
+          sliderIsZooming = false;
           sliderLastDistance = 0;
         }
       });
@@ -326,13 +333,16 @@
         sliderTranslateX = 0;
         sliderTranslateY = 0;
         sliderIsDragging = false;
+        sliderIsZooming = false;
         sliderLastDistance = 0;
-        console.log("重置缩放状态");
+        console.log("🔄 重置缩放状态");
       };
 
       // 鼠标点击（PC端）
       slider.addEventListener("click", (e) => {
+        console.log("🖱️ PC端点击事件", e.target);
         if (e.target.tagName === "IMG" && e.target.classList.contains("active")) {
+          console.log("✅ PC端打开模态框");
           openModal(e.target.src);
         }
       });
