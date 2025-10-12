@@ -362,16 +362,30 @@
       });
 
       // 模态框触摸事件
+      let modalTouchStartX = 0;
+      let modalTouchStartY = 0;
+      let modalIsPinching = false;
+
       modalImg.addEventListener("touchstart", (e) => {
         if (e.touches.length === 2) {
+          // 双指缩放
+          modalIsPinching = true;
           modalLastDistance = getDistance(e.touches[0], e.touches[1]);
-        } else if (e.touches.length === 1 && modalScale > 1) {
-          modalIsDragging = true;
+        } else if (e.touches.length === 1) {
+          // 单指
+          modalIsPinching = false;
+          modalTouchStartX = e.touches[0].clientX;
+          modalTouchStartY = e.touches[0].clientY;
+          
+          if (modalScale > 1) {
+            modalIsDragging = true;
+          }
         }
       });
 
       modalImg.addEventListener("touchmove", (e) => {
-        if (e.touches.length === 2) {
+        if (e.touches.length === 2 && modalIsPinching) {
+          // 双指缩放
           e.preventDefault();
           const distance = getDistance(e.touches[0], e.touches[1]);
           const ratio = distance / modalLastDistance;
@@ -379,9 +393,14 @@
           modalLastDistance = distance;
           updateModalTransform();
         } else if (modalIsDragging && e.touches.length === 1) {
+          // 拖动
           e.preventDefault();
-          modalTranslateX += e.touches[0].clientX - (e.touches[0].clientX - modalTranslateX);
-          modalTranslateY += e.touches[0].clientY - (e.touches[0].clientY - modalTranslateY);
+          const deltaX = e.touches[0].clientX - modalTouchStartX;
+          const deltaY = e.touches[0].clientY - modalTouchStartY;
+          modalTranslateX += deltaX;
+          modalTranslateY += deltaY;
+          modalTouchStartX = e.touches[0].clientX;
+          modalTouchStartY = e.touches[0].clientY;
           updateModalTransform();
         }
       });
@@ -393,15 +412,16 @@
         if (e.touches.length === 0) {
           modalIsDragging = false;
 
-          if (modalScale <= 1) {
+          // 只有真的缩小到1以下才重置
+          if (modalScale < 1) {
             modalScale = 1;
             modalTranslateX = 0;
             modalTranslateY = 0;
             updateModalTransform();
           }
 
-          // 双击检测
-          if (tapGap < 300 && tapGap > 0 && modalLastDistance === 0) {
+          // 双击检测（只在非缩放操作时）
+          if (tapGap < 300 && tapGap > 0 && !modalIsPinching) {
             if (modalScale === 1) {
               modalScale = 2.5;
             } else {
@@ -411,8 +431,11 @@
             }
             updateModalTransform();
           }
+
+          modalIsPinching = false;
         }
 
+        // 重置双指距离
         if (e.touches.length < 2) {
           modalLastDistance = 0;
         }
