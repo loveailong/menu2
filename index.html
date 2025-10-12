@@ -268,9 +268,12 @@
           const currentTime = Date.now();
           const tapGap = currentTime - sliderLastTap;
 
+          // 记录触摸开始时的缩放状态
+          const wasZoomed = sliderScale > 1.1;
+          
           // 处理缩放状态
-          if (sliderScale > 1.1) {
-            // 当前处于缩放状态
+          if (wasZoomed) {
+            // 触摸开始时处于缩放状态
             
             // 判断是否为轻触（没有拖动、移动很小、时间很短）
             const isTap = !sliderHasDragged && !sliderIsPinching && absDiffX < 15 && absDiffY < 15 && duration < 400;
@@ -285,6 +288,7 @@
                 updateSliderTransform();
                 startAutoPlay();
                 sliderLastTap = 0; // 重置，避免三击
+                // 不再执行后续逻辑
               } else {
                 // 单击：记录时间，等待可能的双击
                 sliderLastTap = currentTime;
@@ -317,7 +321,7 @@
               }
             }
           } else {
-            // 未缩放状态
+            // 触摸开始时未缩放状态
             
             // 缩放小于1.1自动恢复
             if (sliderScale <= 1.1) {
@@ -332,23 +336,23 @@
               if (absDiffX > 50 && duration < 500) {
                 // 滑动切换
                 if (diffX > 0) {
-                  showImage(index - 1);
+      showImage(index - 1);
                 } else {
                   showImage(index + 1);
                 }
-                resetTimer();
+      resetTimer();
                 sliderLastTap = 0; // 重置双击计时
               } else if (absDiffX < 20 && absDiffY < 20 && duration < 400) {
-                // 检测双击（用于未来扩展）或单击打开
-                if (tapGap > 350 || tapGap === 0) {
+                // 检测双击或单击
+                if (tapGap < 350 && tapGap > 50) {
+                  // 双击：不做处理（避免误触发）
+                  sliderLastTap = 0;
+                } else if (tapGap > 350 || tapGap === 0) {
                   // 单击：打开模态框
                   const activeImg = slider.querySelector("img.active");
                   if (activeImg) {
                     openModal(activeImg.src);
                   }
-                  sliderLastTap = currentTime;
-                } else {
-                  // 双击：当前不做处理，只记录时间
                   sliderLastTap = currentTime;
                 }
               }
