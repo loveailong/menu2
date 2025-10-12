@@ -196,6 +196,7 @@
       let sliderLastDistance = 0;
       let sliderIsPinching = false;
       let sliderIsDragging = false;
+      let sliderHasDragged = false; // 记录本次触摸是否拖动过
       
       let touchStartX = 0;
       let touchStartY = 0;
@@ -215,10 +216,12 @@
           // 双指缩放 - 暂停轮播
           sliderIsPinching = true;
           sliderLastDistance = getDistance(e.touches[0], e.touches[1]);
+          sliderHasDragged = false; // 重置拖动标记
           clearInterval(timer); // 暂停自动轮播
         } else if (e.touches.length === 1) {
           // 单指
           sliderIsPinching = false;
+          sliderHasDragged = false; // 重置拖动标记
           touchStartX = e.touches[0].clientX;
           touchStartY = e.touches[0].clientY;
           touchStartTime = Date.now();
@@ -239,14 +242,16 @@
           sliderScale = Math.min(Math.max(1, sliderScale * ratio), 5);
           sliderLastDistance = distance;
           updateSliderTransform();
+          sliderHasDragged = true; // 标记进行了操作
         } else if (e.touches.length === 1 && sliderIsDragging) {
-          // 拖动
+          // 拖动查看细节
           e.preventDefault();
           sliderTranslateX += e.touches[0].clientX - touchStartX;
           sliderTranslateY += e.touches[0].clientY - touchStartY;
           touchStartX = e.touches[0].clientX;
           touchStartY = e.touches[0].clientY;
           updateSliderTransform();
+          sliderHasDragged = true; // 标记进行了拖动
         }
       });
 
@@ -264,9 +269,9 @@
           if (sliderScale > 1.1) {
             // 当前处于缩放状态
             
-            // 检测水平滑动：恢复原样并切换图片
-            if (absDiffX > 50 && absDiffX > absDiffY && duration < 500) {
-              // 恢复原样
+            // 快速水平滑动（非拖动）：恢复原样并切换图片
+            if (!sliderHasDragged && absDiffX > 80 && absDiffX > absDiffY && duration < 500) {
+              // 只有快速滑动且没有拖动操作时才切换
               sliderScale = 1;
               sliderTranslateX = 0;
               sliderTranslateY = 0;
@@ -280,8 +285,8 @@
               }
               resetTimer(); // 恢复轮播
             }
-            // 单指轻触（非双指操作）：恢复原样并继续轮播
-            else if (!sliderIsPinching && absDiffX < 30 && absDiffY < 30 && duration < 500) {
+            // 单指轻触（非拖动、非双指）：恢复原样并继续轮播
+            else if (!sliderHasDragged && !sliderIsPinching && absDiffX < 15 && absDiffY < 15 && duration < 400) {
               sliderScale = 1;
               sliderTranslateX = 0;
               sliderTranslateY = 0;
@@ -325,6 +330,7 @@
 
           sliderIsDragging = false;
           sliderIsPinching = false;
+          // 注意：不重置 sliderHasDragged，因为下次 touchstart 会重置
         }
       });
 
@@ -352,6 +358,7 @@
         sliderTranslateY = 0;
         sliderIsPinching = false;
         sliderIsDragging = false;
+        sliderHasDragged = false;
       };
 
       // ========== 模态框功能 ==========
