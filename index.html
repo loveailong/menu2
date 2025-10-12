@@ -241,6 +241,7 @@
       let sliderIsDragging = false;
       let sliderHasDragged = false; // 记录本次触摸是否拖动过
       let sliderLastTap = 0; // 记录上次点击时间，用于双击检测
+      let isClosingZoom = false; // 标记是否正在通过×按钮关闭缩放
       
       let touchStartX = 0;
       let touchStartY = 0;
@@ -256,6 +257,8 @@
 
       // ========== 轮播区域事件 ==========
       slider.addEventListener("touchstart", (e) => {
+        isClosingZoom = false; // 重置关闭标记
+        
         if (e.touches.length === 2) {
           // 双指缩放 - 暂停轮播
           sliderIsPinching = true;
@@ -301,6 +304,13 @@
 
       slider.addEventListener("touchend", (e) => {
         if (e.touches.length === 0) {
+          // 如果正在通过×按钮关闭缩放，跳过所有处理
+          if (isClosingZoom) {
+            sliderIsDragging = false;
+            sliderIsPinching = false;
+            return;
+          }
+          
           const touchEndX = e.changedTouches[0].clientX;
           const touchEndY = e.changedTouches[0].clientY;
           const diffX = touchEndX - touchStartX;
@@ -444,23 +454,33 @@
         updateSliderTransform(); // 更新按钮显示状态
       };
 
-      // 关闭按钮点击事件
+      // 关闭按钮点击事件（PC端）
       zoomCloseBtn.addEventListener("click", () => {
+        isClosingZoom = true; // 设置标记
         sliderScale = 1;
         sliderTranslateX = 0;
         sliderTranslateY = 0;
         updateSliderTransform();
         startAutoPlay(); // 恢复轮播
         sliderLastTap = 0;
+        
+        // 100ms后重置标记
+        setTimeout(() => {
+          isClosingZoom = false;
+        }, 100);
       });
 
       // 防止关闭按钮的触摸事件冒泡到slider
       zoomCloseBtn.addEventListener("touchstart", (e) => {
         e.stopPropagation();
+        e.preventDefault();
+        isClosingZoom = true; // 设置标记
       });
       
       zoomCloseBtn.addEventListener("touchend", (e) => {
         e.stopPropagation();
+        e.preventDefault();
+        
         // 点击关闭按钮
         sliderScale = 1;
         sliderTranslateX = 0;
@@ -468,6 +488,11 @@
         updateSliderTransform();
         startAutoPlay(); // 恢复轮播
         sliderLastTap = 0;
+        
+        // 100ms后重置标记
+        setTimeout(() => {
+          isClosingZoom = false;
+        }, 100);
       });
 
       // ========== 模态框功能 ==========
