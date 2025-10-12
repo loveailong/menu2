@@ -1,9 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
   <title>图片轮播展示</title>
   <style>
     body {
@@ -12,125 +10,56 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 100vh;
+      height: 100vh;
       overflow: hidden;
       flex-direction: column;
-      touch-action: manipulation;
-      /* 允许双指缩放 */
-      padding: 5px;
-      box-sizing: border-box;
+      touch-action: pan-y; /* 防止浏览器滑动冲突 */
     }
-
     .slider {
       width: 90vw;
-      height: 75vh;
+      height: 85vh;
       position: relative;
       overflow: hidden;
       border-radius: 12px;
       box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
-      touch-action: pan-x pan-y pinch-zoom;
     }
-
-    /* 手机端优化 - 占满屏幕 */
-    @media (max-width: 768px) {
-      body {
-        padding: 0;
-        min-height: 100vh;
-        height: 100vh;
-      }
-
-      .slider {
-        width: 100vw;
-        height: 100vh;
-        border-radius: 0;
-        box-shadow: none;
-      }
-
-      .close {
-        top: 15px;
-        right: 15px;
-        font-size: 35px;
-        background-color: rgba(0, 0, 0, 0.5);
-        border-radius: 50%;
-        width: 50px;
-        height: 50px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-    }
-
     .slider img {
       width: 100%;
       height: 100%;
       object-fit: contain;
       position: absolute;
       opacity: 0;
-      cursor: pointer;
-      transform-origin: center center;
-      transition: opacity 0.8s ease-in-out, transform 0.3s ease;
+      transition: opacity 0.8s ease-in-out;
     }
-
-    /* 手机端图片优化 */
-    @media (max-width: 768px) {
-      .slider img {
-        object-fit: cover;
-        object-position: center;
-      }
-    }
-
     .slider img.active {
       opacity: 1;
     }
-
-
-
-    /* 放大模态框样式 */
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 1000;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.9);
+    .buttons {
+      margin-top: 10px;
+      display: flex;
       justify-content: center;
-      align-items: center;
+      gap: 20px;
     }
-
-    .modal-content {
-      max-width: 95%;
-      max-height: 95%;
-      object-fit: contain;
-      transform-origin: center center;
-      transition: transform 0.3s ease;
-    }
-
-    .close {
-      position: absolute;
-      top: 20px;
-      right: 35px;
-      color: #fff;
-      font-size: 40px;
-      font-weight: bold;
+    button {
+      background-color: #222;
+      color: white;
+      border: none;
+      padding: 10px 25px;
+      border-radius: 8px;
+      font-size: 16px;
       cursor: pointer;
-      z-index: 1001;
+      transition: background-color 0.3s;
     }
-
-    .close:hover {
-      color: #ccc;
+    button:hover {
+      background-color: #444;
     }
   </style>
 </head>
-
 <body>
   <div class="slider" id="slider"></div>
-
-  <!-- 放大模态框 -->
-  <div id="imageModal" class="modal">
-    <span class="close" id="closeModal">&times;</span>
-    <img class="modal-content" id="modalImage">
+  <div class="buttons">
+    <button id="prevBtn">上一张</button>
+    <button id="nextBtn">下一张</button>
   </div>
 
   <script>
@@ -143,11 +72,6 @@
     let timer;
     let startX = 0;
     let endX = 0;
-    let initialDistance = 0;
-    let currentScale = 1;
-    let isZooming = false;
-    let zoomTimer = null;
-    let fitMode = 'cover'; // 'cover' 或 'contain'
 
     async function loadImages() {
       const url = `https://api.github.com/repos/${username}/${repo}/contents/${folder}`;
@@ -168,12 +92,6 @@
         const img = document.createElement("img");
         img.src = imgUrl;
         if (i === 0) img.classList.add("active");
-
-        // 添加点击放大功能
-        img.addEventListener("click", () => {
-          openModal(imgUrl);
-        });
-
         slider.appendChild(img);
       });
 
@@ -185,24 +103,17 @@
       const sliderImgs = document.querySelectorAll(".slider img");
       if (sliderImgs.length === 0) return;
 
-      // 重置当前图片的缩放
-      sliderImgs[index].style.transform = "scale(1)";
       sliderImgs[index].classList.remove("active");
-
       index = (newIndex + images.length) % images.length;
       sliderImgs[index].classList.add("active");
-
-      // 重置缩放相关变量
-      currentScale = 1;
     }
 
     function startAutoPlay() {
-      timer = setInterval(() => showImage(index + 1), 6000); // 改为6秒
+      timer = setInterval(() => showImage(index + 1), 3000);
     }
 
     function resetTimer() {
       clearInterval(timer);
-      clearTimeout(zoomTimer);
       startAutoPlay();
     }
 
@@ -219,219 +130,26 @@
     function addSwipeSupport() {
       const slider = document.getElementById("slider");
 
-      // 计算两点间距离
-      function getDistance(touch1, touch2) {
-        return Math.sqrt(
-          Math.pow(touch2.clientX - touch1.clientX, 2) +
-          Math.pow(touch2.clientY - touch1.clientY, 2)
-        );
-      }
-
       slider.addEventListener("touchstart", e => {
-        if (e.touches.length === 1) {
-          // 单指触摸
-          startX = e.touches[0].clientX;
-          isZooming = false;
-        } else if (e.touches.length === 2) {
-          // 双指触摸 - 暂停自动播放
-          e.preventDefault();
-          initialDistance = getDistance(e.touches[0], e.touches[1]);
-          isZooming = true;
-
-          // 暂停自动播放
-          clearInterval(timer);
-          clearTimeout(zoomTimer);
-
-          const activeImg = document.querySelector(".slider img.active");
-          if (activeImg) {
-            currentScale = activeImg.style.transform ?
-              parseFloat(activeImg.style.transform.match(/scale\(([^)]+)\)/)?.[1] || 1) : 1;
-          }
-        }
-      });
-
-      slider.addEventListener("touchmove", e => {
-        if (e.touches.length === 2 && isZooming) {
-          e.preventDefault();
-          const activeImg = document.querySelector(".slider img.active");
-          if (!activeImg) return;
-
-          const currentDistance = getDistance(e.touches[0], e.touches[1]);
-          const scale = currentScale * (currentDistance / initialDistance);
-          const newScale = Math.max(0.5, Math.min(3, scale));
-
-          activeImg.style.transform = `scale(${newScale})`;
-        }
+        startX = e.touches[0].clientX;
       });
 
       slider.addEventListener("touchend", e => {
-        if (e.touches.length === 0 && !isZooming) {
-          // 单指滑动结束
-          endX = e.changedTouches[0].clientX;
-          const diff = endX - startX;
+        endX = e.changedTouches[0].clientX;
+        const diff = endX - startX;
 
-          if (Math.abs(diff) > 50) { // 滑动距离超过50px才算有效滑动
-            if (diff > 0) {
-              showImage(index - 1); // 向右滑，上一张
-            } else {
-              showImage(index + 1); // 向左滑，下一张
-            }
-            resetTimer();
+        if (Math.abs(diff) > 50) { // 滑动距离超过50px才算有效滑动
+          if (diff > 0) {
+            showImage(index - 1); // 向右滑，上一张
+          } else {
+            showImage(index + 1); // 向左滑，下一张
           }
-        } else if (e.touches.length < 2 && isZooming) {
-          // 双指缩放结束 - 延迟恢复自动播放
-          isZooming = false;
-          const activeImg = document.querySelector(".slider img.active");
-          if (activeImg) {
-            currentScale = activeImg.style.transform ?
-              parseFloat(activeImg.style.transform.match(/scale\(([^)]+)\)/)?.[1] || 1) : 1;
-          }
-
-          // 缩放结束后3秒恢复自动播放
-          zoomTimer = setTimeout(() => {
-            startAutoPlay();
-          }, 3000);
-        }
-      });
-
-      // 添加滚轮缩放功能（PC端）
-      slider.addEventListener("wheel", e => {
-        e.preventDefault();
-        const activeImg = document.querySelector(".slider img.active");
-        if (!activeImg) return;
-
-        // 暂停自动播放
-        clearInterval(timer);
-        clearTimeout(zoomTimer);
-
-        const currentScale = activeImg.style.transform ?
-          parseFloat(activeImg.style.transform.match(/scale\(([^)]+)\)/)?.[1] || 1) : 1;
-
-        const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        const newScale = Math.max(0.5, Math.min(3, currentScale + delta));
-
-        activeImg.style.transform = `scale(${newScale})`;
-
-        // 滚轮缩放后3秒恢复自动播放
-        zoomTimer = setTimeout(() => {
-          startAutoPlay();
-        }, 3000);
-      });
-    }
-
-    // 模态框功能
-    function openModal(imgSrc) {
-      const modal = document.getElementById("imageModal");
-      const modalImg = document.getElementById("modalImage");
-
-      modal.style.display = "flex";
-      modalImg.src = imgSrc;
-      modalImg.style.transform = "scale(1)";
-
-      // 暂停自动播放
-      clearInterval(timer);
-    }
-
-    function closeModal() {
-      const modal = document.getElementById("imageModal");
-      modal.style.display = "none";
-
-      // 恢复自动播放
-      startAutoPlay();
-    }
-
-    // 模态框事件监听
-    document.getElementById("closeModal").addEventListener("click", closeModal);
-
-    document.getElementById("imageModal").addEventListener("click", e => {
-      if (e.target.id === "imageModal") {
-        closeModal();
-      }
-    });
-
-    // 模态框内图片缩放功能
-    function addModalZoom() {
-      const modalImg = document.getElementById("modalImage");
-      let modalInitialDistance = 0;
-      let modalCurrentScale = 1;
-      let modalIsZooming = false;
-
-      // 计算两点间距离
-      function getDistance(touch1, touch2) {
-        return Math.sqrt(
-          Math.pow(touch2.clientX - touch1.clientX, 2) +
-          Math.pow(touch2.clientY - touch1.clientY, 2)
-        );
-      }
-
-      // 鼠标滚轮缩放（PC端）
-      modalImg.addEventListener("wheel", e => {
-        e.preventDefault();
-        const currentScale = modalImg.style.transform ?
-          parseFloat(modalImg.style.transform.match(/scale\(([^)]+)\)/)?.[1] || 1) : 1;
-
-        const delta = e.deltaY > 0 ? -0.1 : 0.1;
-        const newScale = Math.max(0.3, Math.min(5, currentScale + delta));
-
-        modalImg.style.transform = `scale(${newScale})`;
-      });
-
-      // 触摸缩放（手机端）
-      modalImg.addEventListener("touchstart", e => {
-        if (e.touches.length === 2) {
-          e.preventDefault();
-          modalInitialDistance = getDistance(e.touches[0], e.touches[1]);
-          modalIsZooming = true;
-          modalCurrentScale = modalImg.style.transform ?
-            parseFloat(modalImg.style.transform.match(/scale\(([^)]+)\)/)?.[1] || 1) : 1;
-        }
-      });
-
-      modalImg.addEventListener("touchmove", e => {
-        if (e.touches.length === 2 && modalIsZooming) {
-          e.preventDefault();
-          const currentDistance = getDistance(e.touches[0], e.touches[1]);
-          const scale = modalCurrentScale * (currentDistance / modalInitialDistance);
-          const newScale = Math.max(0.3, Math.min(5, scale));
-
-          modalImg.style.transform = `scale(${newScale})`;
-        }
-      });
-
-      modalImg.addEventListener("touchend", e => {
-        if (e.touches.length < 2) {
-          modalIsZooming = false;
-          modalCurrentScale = modalImg.style.transform ?
-            parseFloat(modalImg.style.transform.match(/scale\(([^)]+)\)/)?.[1] || 1) : 1;
+          resetTimer();
         }
       });
     }
-
-    // 切换图片适应模式
-    function toggleFitMode() {
-      const images = document.querySelectorAll('.slider img');
-      const fitBtn = document.getElementById('fitBtn');
-
-      if (fitMode === 'cover') {
-        fitMode = 'contain';
-        fitBtn.textContent = '填充';
-        images.forEach(img => {
-          img.style.objectFit = 'contain';
-        });
-      } else {
-        fitMode = 'cover';
-        fitBtn.textContent = '适应';
-        images.forEach(img => {
-          img.style.objectFit = 'cover';
-        });
-      }
-    }
-
-    // 初始化模态框缩放功能
-    addModalZoom();
 
     loadImages();
   </script>
 </body>
-
 </html>
