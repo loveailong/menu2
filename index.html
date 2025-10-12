@@ -212,10 +212,10 @@
       // ========== 轮播区域事件 ==========
       slider.addEventListener("touchstart", (e) => {
         if (e.touches.length === 2) {
-          // 双指缩放 - 立即暂停轮播
+          // 双指缩放 - 暂停轮播
           sliderIsPinching = true;
           sliderLastDistance = getDistance(e.touches[0], e.touches[1]);
-          clearInterval(timer);
+          clearInterval(timer); // 暂停自动轮播
         } else if (e.touches.length === 1) {
           // 单指
           sliderIsPinching = false;
@@ -260,8 +260,10 @@
           const absDiffY = Math.abs(diffY);
           const duration = Date.now() - touchStartTime;
 
-          // 如果当前处于缩放状态（scale > 1.1）
+          // 处理缩放状态
           if (sliderScale > 1.1) {
+            // 当前处于缩放状态
+            
             // 检测水平滑动：恢复原样并切换图片
             if (absDiffX > 50 && absDiffX > absDiffY && duration < 500) {
               // 恢复原样
@@ -272,23 +274,27 @@
               
               // 切换图片
               if (diffX > 0) {
-                showImage(index - 1); // 向右滑，上一张
+                showImage(index - 1);
               } else {
-                showImage(index + 1); // 向左滑，下一张
+                showImage(index + 1);
               }
-              resetTimer();
+              resetTimer(); // 恢复轮播
             }
-            // 小幅移动或点击：恢复原样并继续轮播
-            else if (absDiffX < 20 && absDiffY < 20 && duration < 400) {
+            // 单指轻触（非双指操作）：恢复原样并继续轮播
+            else if (!sliderIsPinching && absDiffX < 30 && absDiffY < 30 && duration < 500) {
               sliderScale = 1;
               sliderTranslateX = 0;
               sliderTranslateY = 0;
               updateSliderTransform();
-              startAutoPlay(); // 继续轮播
+              startAutoPlay(); // 恢复轮播
             }
-          }
-          // 未缩放状态
-          else {
+            // 其他情况（包括双指缩放结束、拖动查看）：保持缩放，不启动轮播
+            else {
+              // 保持缩放状态，轮播保持暂停
+            }
+          } else {
+            // 未缩放状态
+            
             // 缩放小于1.1自动恢复
             if (sliderScale <= 1.1) {
               sliderScale = 1;
