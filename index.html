@@ -272,15 +272,24 @@
           if (sliderScale > 1.1) {
             // 当前处于缩放状态
             
-            // 双击检测：恢复原样并继续轮播
-            if (!sliderHasDragged && absDiffX < 15 && absDiffY < 15 && duration < 400 && tapGap < 300 && tapGap > 0) {
-              // 双击恢复原样
-              sliderScale = 1;
-              sliderTranslateX = 0;
-              sliderTranslateY = 0;
-              updateSliderTransform();
-              startAutoPlay(); // 恢复轮播
-              sliderLastTap = 0; // 重置，避免三击
+            // 判断是否为轻触（没有拖动、移动很小、时间很短）
+            const isTap = !sliderHasDragged && !sliderIsPinching && absDiffX < 15 && absDiffY < 15 && duration < 400;
+            
+            if (isTap) {
+              // 检测是否为双击
+              if (tapGap < 350 && tapGap > 50) {
+                // 双击：恢复原样并继续轮播
+                sliderScale = 1;
+                sliderTranslateX = 0;
+                sliderTranslateY = 0;
+                updateSliderTransform();
+                startAutoPlay();
+                sliderLastTap = 0; // 重置，避免三击
+              } else {
+                // 单击：记录时间，等待可能的双击
+                sliderLastTap = currentTime;
+                // 保持缩放状态
+              }
             }
             // 快速水平滑动（非拖动）：恢复原样并切换图片
             else if (!sliderHasDragged && absDiffX > 80 && absDiffX > absDiffY && duration < 500) {
@@ -296,16 +305,16 @@
               } else {
                 showImage(index + 1);
               }
-              resetTimer(); // 恢复轮播
+              resetTimer();
+              sliderLastTap = 0; // 重置双击计时
             }
-            // 单指轻触（非拖动、非双指）：记录时间，等待可能的双击
-            else if (!sliderHasDragged && !sliderIsPinching && absDiffX < 15 && absDiffY < 15 && duration < 400) {
-              sliderLastTap = currentTime; // 记录单击时间
-              // 保持缩放状态，等待可能的双击
-            }
-            // 其他情况（包括双指缩放结束、拖动查看）：保持缩放，不启动轮播
+            // 其他情况（双指缩放结束、拖动查看）：保持缩放，不启动轮播
             else {
               // 保持缩放状态，轮播保持暂停
+              // 拖动后重置双击计时
+              if (sliderHasDragged) {
+                sliderLastTap = 0;
+              }
             }
           } else {
             // 未缩放状态
@@ -323,20 +332,25 @@
               if (absDiffX > 50 && duration < 500) {
                 // 滑动切换
                 if (diffX > 0) {
-      showImage(index - 1);
+                  showImage(index - 1);
                 } else {
                   showImage(index + 1);
                 }
-      resetTimer();
+                resetTimer();
+                sliderLastTap = 0; // 重置双击计时
               } else if (absDiffX < 20 && absDiffY < 20 && duration < 400) {
-                // 单击打开模态框（不是双击）
-                if (tapGap > 300 || tapGap === 0) {
+                // 检测双击（用于未来扩展）或单击打开
+                if (tapGap > 350 || tapGap === 0) {
+                  // 单击：打开模态框
                   const activeImg = slider.querySelector("img.active");
                   if (activeImg) {
                     openModal(activeImg.src);
                   }
+                  sliderLastTap = currentTime;
+                } else {
+                  // 双击：当前不做处理，只记录时间
+                  sliderLastTap = currentTime;
                 }
-                sliderLastTap = currentTime;
               }
             }
           }
