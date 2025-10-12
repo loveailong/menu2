@@ -36,6 +36,45 @@
     .slider img.active {
       opacity: 1;
     }
+    /* 缩放关闭按钮 */
+    .zoom-close-btn {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: 50px;
+      height: 50px;
+      background-color: rgba(0, 0, 0, 0.6);
+      border-radius: 50%;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      z-index: 999;
+      transition: all 0.3s ease;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+    .zoom-close-btn.show {
+      display: flex;
+    }
+    .zoom-close-btn:active {
+      background-color: rgba(255, 255, 255, 0.2);
+      transform: scale(0.9);
+    }
+    .zoom-close-btn::before,
+    .zoom-close-btn::after {
+      content: '';
+      position: absolute;
+      width: 24px;
+      height: 3px;
+      background-color: #fff;
+      border-radius: 2px;
+    }
+    .zoom-close-btn::before {
+      transform: rotate(45deg);
+    }
+    .zoom-close-btn::after {
+      transform: rotate(-45deg);
+    }
     /* 模态框样式 */
     .modal {
       display: none;
@@ -106,6 +145,9 @@
 </head>
 <body>
   <div class="slider" id="slider"></div>
+  
+  <!-- 缩放关闭按钮 -->
+  <div class="zoom-close-btn" id="zoomCloseBtn"></div>
 
   <!-- 图片查看模态框 -->
   <div class="modal" id="imageModal">
@@ -188,6 +230,7 @@
       const modalImg = document.getElementById("modalImage");
       const closeBtn = document.getElementById("closeBtn");
       const slider = document.getElementById("slider");
+      const zoomCloseBtn = document.getElementById("zoomCloseBtn");
 
       // ===== 轮播区域变量 =====
       let sliderScale = 1;
@@ -381,6 +424,13 @@
         if (activeImg) {
           activeImg.style.transform = `translate(${sliderTranslateX}px, ${sliderTranslateY}px) scale(${sliderScale})`;
         }
+        
+        // 根据缩放状态显示或隐藏关闭按钮
+        if (sliderScale > 1.1) {
+          zoomCloseBtn.classList.add("show");
+        } else {
+          zoomCloseBtn.classList.remove("show");
+        }
       }
 
       window.resetSliderZoom = function() {
@@ -391,7 +441,34 @@
         sliderIsDragging = false;
         sliderHasDragged = false;
         sliderLastTap = 0;
+        updateSliderTransform(); // 更新按钮显示状态
       };
+
+      // 关闭按钮点击事件
+      zoomCloseBtn.addEventListener("click", () => {
+        sliderScale = 1;
+        sliderTranslateX = 0;
+        sliderTranslateY = 0;
+        updateSliderTransform();
+        startAutoPlay(); // 恢复轮播
+        sliderLastTap = 0;
+      });
+
+      // 防止关闭按钮的触摸事件冒泡到slider
+      zoomCloseBtn.addEventListener("touchstart", (e) => {
+        e.stopPropagation();
+      });
+      
+      zoomCloseBtn.addEventListener("touchend", (e) => {
+        e.stopPropagation();
+        // 点击关闭按钮
+        sliderScale = 1;
+        sliderTranslateX = 0;
+        sliderTranslateY = 0;
+        updateSliderTransform();
+        startAutoPlay(); // 恢复轮播
+        sliderLastTap = 0;
+      });
 
       // ========== 模态框功能 ==========
       function openModal(imgSrc) {
