@@ -14,8 +14,8 @@
       height: 100vh;
       overflow: hidden;
       flex-direction: column;
-      touch-action: pan-y;
-      /* 防止浏览器滑动冲突 */
+      touch-action: manipulation;
+      /* 允许双指缩放 */
     }
 
     .slider {
@@ -25,6 +25,7 @@
       overflow: hidden;
       border-radius: 12px;
       box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+      touch-action: pan-x pan-y pinch-zoom;
     }
 
     .slider img {
@@ -127,6 +128,9 @@
     let timer;
     let startX = 0;
     let endX = 0;
+    let initialDistance = 0;
+    let currentScale = 1;
+    let isZooming = false;
 
     async function loadImages() {
       const url = `https://api.github.com/repos/${username}/${repo}/contents/${folder}`;
@@ -191,25 +195,72 @@
     function addSwipeSupport() {
       const slider = document.getElementById("slider");
 
+      // 计算两点间距离
+      function getDistance(touch1, touch2) {
+        return Math.sqrt(
+          Math.pow(touch2.clientX - touch1.clientX, 2) +
+          Math.pow(touch2.clientY - touch1.clientY, 2)
+        );
+      }
+
       slider.addEventListener("touchstart", e => {
-        startX = e.touches[0].clientX;
-      });
+        if (e.touches.length === 1) {
+          // 单指触摸
+          startX = e.touches[0].clientX;
+          isZooming = false;
+        } else if (e.touches.length === 2) {
+          // 双指触摸
+          initialDistance = getDistance(e.touches[0], e.touches[1]);
+          isZooming = true;
 
-      slider.addEventListener("touchend", e => {
-        endX = e.changedTouches[0].clientX;
-        const diff = endX - startX;
-
-        if (Math.abs(diff) > 50) { // 滑动距离超过50px才算有效滑动
-          if (diff > 0) {
-            showImage(index - 1); // 向右滑，上一张
-          } else {
-            showImage(index + 1); // 向左滑，下一张
+          const activeImg = document.querySelector(".slider img.active");
+          if (activeImg) {
+            currentScale = activeImg.style.transform ?
+              parseFloat(activeImg.style.transform.match(/scale\(([^)]+)\)/)?.[1] || 1) : 1;
           }
-          resetTimer();
         }
       });
 
-      // 添加滚轮缩放功能
+      slider.addEventListener("touchmove", e => {
+        if (e.touches.length === 2 && isZooming) {
+          e.preventDefault();
+          const activeImg = document.querySelector(".slider img.active");
+          if (!activeImg) return;
+
+          const currentDistance = getDistance(e.touches[0], e.touches[1]);
+          const scale = currentScale * (currentDistance / initialDistance);
+          const newScale = Math.max(0.5, Math.min(3, scale));
+
+          activeImg.style.transform = `scale(${newScale})`;
+        }
+      });
+
+      slider.addEventListener("touchend", e => {
+        if (e.touches.length === 0 && !isZooming) {
+          // 单指滑动结束
+          endX = e.changedTouches[0].clientX;
+          const diff = endX - startX;
+
+          if (Math.abs(diff) > 50) { // 滑动距离超过50px才算有效滑动
+            if (diff > 0) {
+              showImage(index - 1); // 向右滑，上一张
+            } else {
+              showImage(index + 1); // 向左滑，下一张
+            }
+            resetTimer();
+          }
+        } else if (e.touches.length < 2) {
+          // 双指缩放结束
+          isZooming = false;
+          const activeImg = document.querySelector(".slider img.active");
+          if (activeImg) {
+            currentScale = activeImg.style.transform ?
+              parseFloat(activeImg.style.transform.match(/scale\(([^)]+)\)/)?.[1] || 1) : 1;
+          }
+        }
+      });
+
+      // 添加滚轮缩放功能（PC端）
       slider.addEventListener("wheel", e => {
         e.preventDefault();
         const activeImg = document.querySelector(".slider img.active");
@@ -255,18 +306,66 @@
       }
     });
 
-    // 模态框内图片缩放
-    document.getElementById("modalImage").addEventListener("wheel", e => {
-      e.preventDefault();
-      const img = e.target;
-      const currentScale = img.style.transform ?
-        parseFloat(img.style.transform.match(/scale\(([^)]+)\)/)?.[1] || 1) : 1;
+    // 模态框内图片缩放功能
+    function addModalZoom() {
+      const modalImg = document.getElementById("modalImage");
+      let modalInitialDistance = 0;
+      let modalCurrentScale = 1;
+      let modalIsZooming = false;
 
-      const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      const newScale = Math.max(0.3, Math.min(5, currentScale + delta));
+      // 计算两点间距离
+      function getDistance(touch1, touch2) {
+        return Math.sqrt(
+          Math.pow(touch2.clientX - touch1.clientX, 2) +
+          Math.pow(touch2.clientY - touch1.clientY, 2)
+        );
+      }
 
-      img.style.transform = `scale(${newScale})`;
-    });
+      // 鼠标滚轮缩放（PC端）
+      modalImg.addEventListener("wheel", e => {
+        e.preventDefault();
+        const currentScale = modalImg.style.transform ?
+          parseFloat(modalImg.style.transform.match(/scale\(([^)]+)\)/)?.[1] || 1) : 1;
+
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        const newScale = Math.max(0.3, Math.min(5, currentScale + delta));
+
+        modalImg.style.transform = `scale(${newScale})`;
+      });
+
+      // 触摸缩放（手机端）
+      modalImg.addEventListener("touchstart", e => {
+        if (e.touches.length === 2) {
+          e.preventDefault();
+          modalInitialDistance = getDistance(e.touches[0], e.touches[1]);
+          modalIsZooming = true;
+          modalCurrentScale = modalImg.style.transform ?
+            parseFloat(modalImg.style.transform.match(/scale\(([^)]+)\)/)?.[1] || 1) : 1;
+        }
+      });
+
+      modalImg.addEventListener("touchmove", e => {
+        if (e.touches.length === 2 && modalIsZooming) {
+          e.preventDefault();
+          const currentDistance = getDistance(e.touches[0], e.touches[1]);
+          const scale = modalCurrentScale * (currentDistance / modalInitialDistance);
+          const newScale = Math.max(0.3, Math.min(5, scale));
+
+          modalImg.style.transform = `scale(${newScale})`;
+        }
+      });
+
+      modalImg.addEventListener("touchend", e => {
+        if (e.touches.length < 2) {
+          modalIsZooming = false;
+          modalCurrentScale = modalImg.style.transform ?
+            parseFloat(modalImg.style.transform.match(/scale\(([^)]+)\)/)?.[1] || 1) : 1;
+        }
+      });
+    }
+
+    // 初始化模态框缩放功能
+    addModalZoom();
 
     loadImages();
   </script>
