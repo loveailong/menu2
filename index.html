@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
   <title>图片轮播展示</title>
   <style>
     body {
@@ -30,6 +31,7 @@
       position: absolute;
       opacity: 0;
       transition: opacity 0.8s ease-in-out;
+      cursor: pointer;
     }
     .slider img.active {
       opacity: 1;
@@ -53,6 +55,72 @@
     button:hover {
       background-color: #444;
     }
+    /* 模态框样式 */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.95);
+      overflow: hidden;
+    }
+    .modal.show {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+    .modal-image {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      transition: transform 0.3s ease;
+      touch-action: none;
+    }
+    .close-btn {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      color: #fff;
+      font-size: 40px;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 1001;
+      background-color: rgba(0, 0, 0, 0.5);
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      line-height: 1;
+    }
+    .close-btn:hover {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+    .zoom-hint {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #fff;
+      font-size: 14px;
+      background-color: rgba(0, 0, 0, 0.7);
+      padding: 10px 20px;
+      border-radius: 20px;
+      z-index: 1001;
+    }
   </style>
 </head>
 <body>
@@ -60,6 +128,15 @@
   <div class="buttons">
     <button id="prevBtn">上一张</button>
     <button id="nextBtn">下一张</button>
+  </div>
+
+  <!-- 图片查看模态框 -->
+  <div class="modal" id="imageModal">
+    <span class="close-btn" id="closeBtn">&times;</span>
+    <div class="modal-content">
+      <img class="modal-image" id="modalImage" src="" alt="">
+    </div>
+    <div class="zoom-hint">双击或双指缩放查看</div>
   </div>
 
   <script>
@@ -109,7 +186,7 @@
     }
 
     function startAutoPlay() {
-      timer = setInterval(() => showImage(index + 1), 3000);
+      timer = setInterval(() => showImage(index + 1), 6000); // 修改为6秒切换一次
     }
 
     function resetTimer() {
@@ -149,7 +226,175 @@
       });
     }
 
+    // 图片查看功能
+    function setupImageViewer() {
+      const modal = document.getElementById("imageModal");
+      const modalImg = document.getElementById("modalImage");
+      const closeBtn = document.getElementById("closeBtn");
+      const slider = document.getElementById("slider");
+      
+      let scale = 1;
+      let lastTap = 0;
+      let isDragging = false;
+      let startPosX = 0;
+      let startPosY = 0;
+      let translateX = 0;
+      let translateY = 0;
+      let lastDistance = 0;
+
+      // 点击轮播图片打开模态框
+      slider.addEventListener("click", (e) => {
+        if (e.target.tagName === "IMG" && e.target.classList.contains("active")) {
+          modal.classList.add("show");
+          modalImg.src = e.target.src;
+          scale = 1;
+          translateX = 0;
+          translateY = 0;
+          updateTransform();
+          clearInterval(timer); // 暂停轮播
+        }
+      });
+
+      // 关闭模态框
+      closeBtn.addEventListener("click", closeModal);
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) {
+          closeModal();
+        }
+      });
+
+      function closeModal() {
+        modal.classList.remove("show");
+        scale = 1;
+        translateX = 0;
+        translateY = 0;
+        updateTransform();
+        startAutoPlay(); // 恢复轮播
+      }
+
+      // 双击放大/缩小
+      modalImg.addEventListener("dblclick", (e) => {
+        if (scale === 1) {
+          scale = 2.5;
+          // 以点击位置为中心放大
+          const rect = modalImg.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          translateX = (rect.width / 2 - x) * 1.5;
+          translateY = (rect.height / 2 - y) * 1.5;
+        } else {
+          scale = 1;
+          translateX = 0;
+          translateY = 0;
+        }
+        updateTransform();
+      });
+
+      // 触摸双击
+      modalImg.addEventListener("touchend", (e) => {
+        const currentTime = new Date().getTime();
+        const tapLength = currentTime - lastTap;
+        if (tapLength < 300 && tapLength > 0) {
+          if (scale === 1) {
+            scale = 2.5;
+          } else {
+            scale = 1;
+            translateX = 0;
+            translateY = 0;
+          }
+          updateTransform();
+        }
+        lastTap = currentTime;
+      });
+
+      // 双指缩放
+      modalImg.addEventListener("touchstart", (e) => {
+        if (e.touches.length === 2) {
+          lastDistance = getDistance(e.touches[0], e.touches[1]);
+        } else if (e.touches.length === 1 && scale > 1) {
+          isDragging = true;
+          startPosX = e.touches[0].clientX - translateX;
+          startPosY = e.touches[0].clientY - translateY;
+        }
+      });
+
+      modalImg.addEventListener("touchmove", (e) => {
+        if (e.touches.length === 2) {
+          e.preventDefault();
+          const distance = getDistance(e.touches[0], e.touches[1]);
+          const newScale = scale * (distance / lastDistance);
+          scale = Math.min(Math.max(1, newScale), 5);
+          lastDistance = distance;
+          updateTransform();
+        } else if (isDragging && e.touches.length === 1) {
+          e.preventDefault();
+          translateX = e.touches[0].clientX - startPosX;
+          translateY = e.touches[0].clientY - startPosY;
+          updateTransform();
+        }
+      });
+
+      modalImg.addEventListener("touchend", (e) => {
+        if (e.touches.length === 0) {
+          isDragging = false;
+          if (scale <= 1) {
+            scale = 1;
+            translateX = 0;
+            translateY = 0;
+            updateTransform();
+          }
+        }
+      });
+
+      // 鼠标滚轮缩放（PC端）
+      modalImg.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        scale = Math.min(Math.max(1, scale * delta), 5);
+        if (scale === 1) {
+          translateX = 0;
+          translateY = 0;
+        }
+        updateTransform();
+      });
+
+      // 鼠标拖动（PC端）
+      modalImg.addEventListener("mousedown", (e) => {
+        if (scale > 1) {
+          isDragging = true;
+          startPosX = e.clientX - translateX;
+          startPosY = e.clientY - translateY;
+          modalImg.style.cursor = "grabbing";
+        }
+      });
+
+      document.addEventListener("mousemove", (e) => {
+        if (isDragging) {
+          translateX = e.clientX - startPosX;
+          translateY = e.clientY - startPosY;
+          updateTransform();
+        }
+      });
+
+      document.addEventListener("mouseup", () => {
+        isDragging = false;
+        modalImg.style.cursor = scale > 1 ? "grab" : "default";
+      });
+
+      function updateTransform() {
+        modalImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+        modalImg.style.cursor = scale > 1 ? "grab" : "default";
+      }
+
+      function getDistance(touch1, touch2) {
+        const dx = touch1.clientX - touch2.clientX;
+        const dy = touch1.clientY - touch2.clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+    }
+
     loadImages();
+    setupImageViewer();
   </script>
 </body>
 </html>
