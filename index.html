@@ -14,7 +14,6 @@
       height: 100vh;
       overflow: hidden;
       flex-direction: column;
-      touch-action: pan-y; /* 防止浏览器滑动冲突 */
     }
     .slider {
       width: 90vw;
@@ -149,32 +148,27 @@
       });
 
       startAutoPlay();
-      setupImageViewer(); // 在图片加载完成后设置点击和滑动事件
+      setupImageViewer();
     }
 
     function showImage(newIndex) {
       const sliderImgs = document.querySelectorAll(".slider img");
       if (sliderImgs.length === 0) return;
 
-      // 先重置缩放状态（在切换图片之前）
+      // 重置缩放
       if (window.resetSliderZoom) {
         window.resetSliderZoom();
       }
 
-      // 移除旧图片的active和transform
-      const oldImg = sliderImgs[index];
-      oldImg.classList.remove("active");
-      oldImg.style.transform = "";
+      sliderImgs[index].classList.remove("active");
+      sliderImgs[index].style.transform = "";
       
-      // 切换到新图片
       index = (newIndex + images.length) % images.length;
       sliderImgs[index].classList.add("active");
-      
-      console.log(`切换到图片 ${index}`);
     }
 
     function startAutoPlay() {
-      timer = setInterval(() => showImage(index + 1), 6000); // 修改为6秒切换一次
+      timer = setInterval(() => showImage(index + 1), 6000);
     }
 
     function resetTimer() {
@@ -182,68 +176,60 @@
       startAutoPlay();
     }
 
-    // 辅助函数：计算两点之间的距离
+    // 计算两点距离
     function getDistance(touch1, touch2) {
       const dx = touch1.clientX - touch2.clientX;
       const dy = touch1.clientY - touch2.clientY;
       return Math.sqrt(dx * dx + dy * dy);
     }
 
-    // 图片查看功能
     function setupImageViewer() {
       const modal = document.getElementById("imageModal");
       const modalImg = document.getElementById("modalImage");
       const closeBtn = document.getElementById("closeBtn");
       const slider = document.getElementById("slider");
 
-      let scale = 1;
-      let lastTap = 0;
-      let isDragging = false;
-      let startPosX = 0;
-      let startPosY = 0;
-      let translateX = 0;
-      let translateY = 0;
-      let lastDistance = 0;
-
-      // 轮播区域的缩放和交互
+      // ===== 轮播区域变量 =====
       let sliderScale = 1;
       let sliderTranslateX = 0;
       let sliderTranslateY = 0;
       let sliderLastDistance = 0;
+      let sliderIsPinching = false;
       let sliderIsDragging = false;
-      let sliderIsZooming = false; // 标记是否正在进行缩放
+      
       let touchStartX = 0;
       let touchStartY = 0;
       let touchStartTime = 0;
-      let dragStartX = 0;
-      let dragStartY = 0;
 
-      // 触摸开始
+      // ===== 模态框变量 =====
+      let modalScale = 1;
+      let modalTranslateX = 0;
+      let modalTranslateY = 0;
+      let modalLastDistance = 0;
+      let modalIsDragging = false;
+      let modalLastTap = 0;
+
+      // ========== 轮播区域事件 ==========
       slider.addEventListener("touchstart", (e) => {
         if (e.touches.length === 2) {
-          // 双指缩放开始
-          sliderIsZooming = true;
+          // 双指缩放
+          sliderIsPinching = true;
           sliderLastDistance = getDistance(e.touches[0], e.touches[1]);
-          console.log("开始双指缩放");
         } else if (e.touches.length === 1) {
-          // 单指触摸
-          sliderIsZooming = false;
+          // 单指
+          sliderIsPinching = false;
           touchStartX = e.touches[0].clientX;
           touchStartY = e.touches[0].clientY;
           touchStartTime = Date.now();
-          console.log("单指触摸开始");
           
-          if (sliderScale > 1) {
+          if (sliderScale > 1.1) {
             sliderIsDragging = true;
-            dragStartX = touchStartX - sliderTranslateX;
-            dragStartY = touchStartY - sliderTranslateY;
           }
         }
       });
 
-      // 触摸移动
       slider.addEventListener("touchmove", (e) => {
-        if (e.touches.length === 2 && sliderIsZooming) {
+        if (e.touches.length === 2 && sliderIsPinching) {
           // 双指缩放
           e.preventDefault();
           const distance = getDistance(e.touches[0], e.touches[1]);
@@ -251,17 +237,17 @@
           sliderScale = Math.min(Math.max(1, sliderScale * ratio), 5);
           sliderLastDistance = distance;
           updateSliderTransform();
-          console.log("缩放中，scale:", sliderScale);
-        } else if (sliderIsDragging && e.touches.length === 1) {
-          // 拖动查看
+        } else if (e.touches.length === 1 && sliderIsDragging) {
+          // 拖动
           e.preventDefault();
-          sliderTranslateX = e.touches[0].clientX - dragStartX;
-          sliderTranslateY = e.touches[0].clientY - dragStartY;
+          sliderTranslateX += e.touches[0].clientX - touchStartX;
+          sliderTranslateY += e.touches[0].clientY - touchStartY;
+          touchStartX = e.touches[0].clientX;
+          touchStartY = e.touches[0].clientY;
           updateSliderTransform();
         }
       });
 
-      // 触摸结束：判断是滑动、点击还是缩放
       slider.addEventListener("touchend", (e) => {
         if (e.touches.length === 0) {
           const touchEndX = e.changedTouches[0].clientX;
@@ -271,52 +257,48 @@
           const absDiffX = Math.abs(diffX);
           const absDiffY = Math.abs(diffY);
           const duration = Date.now() - touchStartTime;
-          
-          console.log(`touchend - scale: ${sliderScale}, isZooming: ${sliderIsZooming}, diffX: ${absDiffX}, diffY: ${absDiffY}, duration: ${duration}`);
-          
-          // 如果缩放比例恢复到1或接近1，重置位置
+
+          // 缩放小于1.1自动恢复
           if (sliderScale <= 1.1) {
             sliderScale = 1;
             sliderTranslateX = 0;
             sliderTranslateY = 0;
             updateSliderTransform();
           }
-          
+
           sliderIsDragging = false;
-          
-          // 只在没有进行缩放操作且当前是正常比例时处理滑动和点击
-          if (sliderScale === 1 && !sliderIsZooming) {
-            // 水平滑动距离超过50px：切换图片
-            if (absDiffX > 50 && absDiffX > absDiffY && duration < 500) {
-              console.log("✅ 触发滑动切换");
+
+          // 未缩放状态下的滑动和点击
+          if (sliderScale === 1 && !sliderIsPinching) {
+            if (absDiffX > 50 && duration < 500) {
+              // 滑动切换
               if (diffX > 0) {
-            showImage(index - 1); // 向右滑，上一张
-          } else {
-            showImage(index + 1); // 向左滑，下一张
-          }
-          resetTimer();
-        }
-            // 移动距离小且时间短：点击打开图片
-            else if (absDiffX < 20 && absDiffY < 20 && duration < 400) {
-              console.log("✅ 触发点击");
-              const target = document.elementFromPoint(touchEndX, touchEndY);
-              console.log("target:", target, target?.tagName, target?.classList);
-              if (target && target.tagName === "IMG" && target.classList.contains("active")) {
-                console.log("✅ 打开模态框，图片 src:", target.src);
-                openModal(target.src);
+                showImage(index - 1);
               } else {
-                console.log("❌ 未找到有效的图片目标");
+                showImage(index + 1);
               }
-            } else {
-              console.log("⚠️ 移动距离或时间不符合点击条件");
+              resetTimer();
+            } else if (absDiffX < 20 && absDiffY < 20 && duration < 400) {
+              // 点击打开
+              const activeImg = slider.querySelector("img.active");
+              if (activeImg) {
+                openModal(activeImg.src);
+              }
             }
-          } else {
-            console.log(`❌ 跳过点击处理 - sliderScale: ${sliderScale}, isZooming: ${sliderIsZooming}`);
           }
-          
-          // 重置缩放标记和距离
-          sliderIsZooming = false;
-          sliderLastDistance = 0;
+
+          sliderIsPinching = false;
+        }
+      });
+
+      // PC端点击
+      slider.addEventListener("click", (e) => {
+        // 只要点击的是图片且未缩放，就打开当前活动图片
+        if (e.target.tagName === "IMG" && sliderScale === 1) {
+          const activeImg = slider.querySelector("img.active");
+          if (activeImg) {
+            openModal(activeImg.src);
+          }
         }
       });
 
@@ -327,37 +309,34 @@
         }
       }
 
-      // 重置轮播区域缩放
       window.resetSliderZoom = function() {
         sliderScale = 1;
         sliderTranslateX = 0;
         sliderTranslateY = 0;
+        sliderIsPinching = false;
         sliderIsDragging = false;
-        sliderIsZooming = false;
-        sliderLastDistance = 0;
-        console.log("🔄 重置缩放状态");
       };
 
-      // 鼠标点击（PC端）
-      slider.addEventListener("click", (e) => {
-        console.log("🖱️ PC端点击事件", e.target);
-        if (e.target.tagName === "IMG" && e.target.classList.contains("active")) {
-          console.log("✅ PC端打开模态框");
-          openModal(e.target.src);
-        }
-      });
-
+      // ========== 模态框功能 ==========
       function openModal(imgSrc) {
         modal.classList.add("show");
         modalImg.src = imgSrc;
-        scale = 1;
-        translateX = 0;
-        translateY = 0;
-        updateTransform();
-        clearInterval(timer); // 暂停轮播
+        modalScale = 1;
+        modalTranslateX = 0;
+        modalTranslateY = 0;
+        updateModalTransform();
+        clearInterval(timer);
       }
 
-      // 关闭模态框
+      function closeModal() {
+        modal.classList.remove("show");
+        modalScale = 1;
+        modalTranslateX = 0;
+        modalTranslateY = 0;
+        updateModalTransform();
+        startAutoPlay();
+      }
+
       closeBtn.addEventListener("click", closeModal);
       modal.addEventListener("click", (e) => {
         if (e.target === modal) {
@@ -365,142 +344,124 @@
         }
       });
 
-      function closeModal() {
-        modal.classList.remove("show");
-        scale = 1;
-        translateX = 0;
-        translateY = 0;
-        updateTransform();
-        startAutoPlay(); // 恢复轮播
-      }
-
-      // 双击放大/缩小（PC端）
+      // PC端双击
       modalImg.addEventListener("dblclick", (e) => {
-        if (scale === 1) {
-          scale = 2.5;
-          // 以点击位置为中心放大
+        if (modalScale === 1) {
+          modalScale = 2.5;
           const rect = modalImg.getBoundingClientRect();
           const x = e.clientX - rect.left;
           const y = e.clientY - rect.top;
-          translateX = (rect.width / 2 - x) * 1.5;
-          translateY = (rect.height / 2 - y) * 1.5;
+          modalTranslateX = (rect.width / 2 - x) * 1.5;
+          modalTranslateY = (rect.height / 2 - y) * 1.5;
         } else {
-          scale = 1;
-          translateX = 0;
-          translateY = 0;
+          modalScale = 1;
+          modalTranslateX = 0;
+          modalTranslateY = 0;
         }
-        updateTransform();
+        updateModalTransform();
       });
 
-      // 触摸事件：双击、双指缩放、拖动
+      // 模态框触摸事件
       modalImg.addEventListener("touchstart", (e) => {
         if (e.touches.length === 2) {
-          // 双指缩放开始
-          lastDistance = getDistance(e.touches[0], e.touches[1]);
-        } else if (e.touches.length === 1) {
-          // 单指：准备拖动或检测双击
-          if (scale > 1) {
-            isDragging = true;
-            startPosX = e.touches[0].clientX - translateX;
-            startPosY = e.touches[0].clientY - translateY;
-          }
+          modalLastDistance = getDistance(e.touches[0], e.touches[1]);
+        } else if (e.touches.length === 1 && modalScale > 1) {
+          modalIsDragging = true;
         }
       });
 
       modalImg.addEventListener("touchmove", (e) => {
         if (e.touches.length === 2) {
-          // 双指缩放中
           e.preventDefault();
           const distance = getDistance(e.touches[0], e.touches[1]);
-          const ratio = distance / lastDistance;
-          scale = Math.min(Math.max(1, scale * ratio), 5);
-          lastDistance = distance;
-          updateTransform();
-        } else if (isDragging && e.touches.length === 1) {
-          // 拖动中
+          const ratio = distance / modalLastDistance;
+          modalScale = Math.min(Math.max(1, modalScale * ratio), 5);
+          modalLastDistance = distance;
+          updateModalTransform();
+        } else if (modalIsDragging && e.touches.length === 1) {
           e.preventDefault();
-          translateX = e.touches[0].clientX - startPosX;
-          translateY = e.touches[0].clientY - startPosY;
-          updateTransform();
+          modalTranslateX += e.touches[0].clientX - (e.touches[0].clientX - modalTranslateX);
+          modalTranslateY += e.touches[0].clientY - (e.touches[0].clientY - modalTranslateY);
+          updateModalTransform();
         }
       });
 
       modalImg.addEventListener("touchend", (e) => {
-        // 检测双击
-        const currentTime = new Date().getTime();
-        const tapLength = currentTime - lastTap;
-        
+        const currentTime = Date.now();
+        const tapGap = currentTime - modalLastTap;
+
         if (e.touches.length === 0) {
-          // 所有手指离开
-          isDragging = false;
-          
-          // 缩放小于1时恢复
-          if (scale <= 1) {
-            scale = 1;
-            translateX = 0;
-            translateY = 0;
-            updateTransform();
+          modalIsDragging = false;
+
+          if (modalScale <= 1) {
+            modalScale = 1;
+            modalTranslateX = 0;
+            modalTranslateY = 0;
+            updateModalTransform();
           }
-          
-          // 双击检测（只在没有进行缩放操作时）
-          if (tapLength < 300 && tapLength > 0 && lastDistance === 0) {
-            if (scale === 1) {
-              scale = 2.5;
+
+          // 双击检测
+          if (tapGap < 300 && tapGap > 0 && modalLastDistance === 0) {
+            if (modalScale === 1) {
+              modalScale = 2.5;
             } else {
-              scale = 1;
-              translateX = 0;
-              translateY = 0;
+              modalScale = 1;
+              modalTranslateX = 0;
+              modalTranslateY = 0;
             }
-            updateTransform();
+            updateModalTransform();
           }
         }
-        
-        // 重置双指距离
+
         if (e.touches.length < 2) {
-          lastDistance = 0;
+          modalLastDistance = 0;
         }
-        
-        lastTap = currentTime;
+
+        modalLastTap = currentTime;
       });
 
-      // 鼠标滚轮缩放（PC端）
+      // 鼠标滚轮
       modalImg.addEventListener("wheel", (e) => {
         e.preventDefault();
         const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        scale = Math.min(Math.max(1, scale * delta), 5);
-        if (scale === 1) {
-          translateX = 0;
-          translateY = 0;
+        modalScale = Math.min(Math.max(1, modalScale * delta), 5);
+        if (modalScale === 1) {
+          modalTranslateX = 0;
+          modalTranslateY = 0;
         }
-        updateTransform();
+        updateModalTransform();
       });
 
-      // 鼠标拖动（PC端）
+      // 鼠标拖动
+      let mouseStartX = 0;
+      let mouseStartY = 0;
+      let mouseDragging = false;
+
       modalImg.addEventListener("mousedown", (e) => {
-        if (scale > 1) {
-          isDragging = true;
-          startPosX = e.clientX - translateX;
-          startPosY = e.clientY - translateY;
+        if (modalScale > 1) {
+          mouseDragging = true;
+          mouseStartX = e.clientX - modalTranslateX;
+          mouseStartY = e.clientY - modalTranslateY;
           modalImg.style.cursor = "grabbing";
         }
       });
 
       document.addEventListener("mousemove", (e) => {
-        if (isDragging) {
-          translateX = e.clientX - startPosX;
-          translateY = e.clientY - startPosY;
-          updateTransform();
+        if (mouseDragging) {
+          modalTranslateX = e.clientX - mouseStartX;
+          modalTranslateY = e.clientY - mouseStartY;
+          updateModalTransform();
         }
       });
 
       document.addEventListener("mouseup", () => {
-        isDragging = false;
-        modalImg.style.cursor = scale > 1 ? "grab" : "default";
+        mouseDragging = false;
+        modalImg.style.cursor = modalScale > 1 ? "grab" : "default";
       });
 
-      function updateTransform() {
-        modalImg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
-        modalImg.style.cursor = scale > 1 ? "grab" : "default";
+      function updateModalTransform() {
+        modalImg.style.transform = `translate(${modalTranslateX}px, ${modalTranslateY}px) scale(${modalScale})`;
+        modalImg.style.cursor = modalScale > 1 ? "grab" : "default";
       }
     }
 
