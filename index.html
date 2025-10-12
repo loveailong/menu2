@@ -197,6 +197,7 @@
       let sliderIsPinching = false;
       let sliderIsDragging = false;
       let sliderHasDragged = false; // 记录本次触摸是否拖动过
+      let sliderLastTap = 0; // 记录上次点击时间，用于双击检测
       
       let touchStartX = 0;
       let touchStartY = 0;
@@ -264,13 +265,25 @@
           const absDiffX = Math.abs(diffX);
           const absDiffY = Math.abs(diffY);
           const duration = Date.now() - touchStartTime;
+          const currentTime = Date.now();
+          const tapGap = currentTime - sliderLastTap;
 
           // 处理缩放状态
           if (sliderScale > 1.1) {
             // 当前处于缩放状态
             
+            // 双击检测：恢复原样并继续轮播
+            if (!sliderHasDragged && absDiffX < 15 && absDiffY < 15 && duration < 400 && tapGap < 300 && tapGap > 0) {
+              // 双击恢复原样
+              sliderScale = 1;
+              sliderTranslateX = 0;
+              sliderTranslateY = 0;
+              updateSliderTransform();
+              startAutoPlay(); // 恢复轮播
+              sliderLastTap = 0; // 重置，避免三击
+            }
             // 快速水平滑动（非拖动）：恢复原样并切换图片
-            if (!sliderHasDragged && absDiffX > 80 && absDiffX > absDiffY && duration < 500) {
+            else if (!sliderHasDragged && absDiffX > 80 && absDiffX > absDiffY && duration < 500) {
               // 只有快速滑动且没有拖动操作时才切换
               sliderScale = 1;
               sliderTranslateX = 0;
@@ -285,13 +298,10 @@
               }
               resetTimer(); // 恢复轮播
             }
-            // 单指轻触（非拖动、非双指）：恢复原样并继续轮播
+            // 单指轻触（非拖动、非双指）：记录时间，等待可能的双击
             else if (!sliderHasDragged && !sliderIsPinching && absDiffX < 15 && absDiffY < 15 && duration < 400) {
-              sliderScale = 1;
-              sliderTranslateX = 0;
-              sliderTranslateY = 0;
-              updateSliderTransform();
-              startAutoPlay(); // 恢复轮播
+              sliderLastTap = currentTime; // 记录单击时间
+              // 保持缩放状态，等待可能的双击
             }
             // 其他情况（包括双指缩放结束、拖动查看）：保持缩放，不启动轮播
             else {
@@ -313,17 +323,20 @@
               if (absDiffX > 50 && duration < 500) {
                 // 滑动切换
                 if (diffX > 0) {
-                  showImage(index - 1);
+      showImage(index - 1);
                 } else {
                   showImage(index + 1);
                 }
-                resetTimer();
+      resetTimer();
               } else if (absDiffX < 20 && absDiffY < 20 && duration < 400) {
-                // 点击打开
-                const activeImg = slider.querySelector("img.active");
-                if (activeImg) {
-                  openModal(activeImg.src);
+                // 单击打开模态框（不是双击）
+                if (tapGap > 300 || tapGap === 0) {
+                  const activeImg = slider.querySelector("img.active");
+                  if (activeImg) {
+                    openModal(activeImg.src);
+                  }
                 }
+                sliderLastTap = currentTime;
               }
             }
           }
@@ -359,6 +372,7 @@
         sliderIsPinching = false;
         sliderIsDragging = false;
         sliderHasDragged = false;
+        sliderLastTap = 0;
       };
 
       // ========== 模态框功能 ==========
@@ -468,7 +482,7 @@
           if (tapGap < 300 && tapGap > 0 && !modalIsPinching) {
             if (modalScale === 1) {
               modalScale = 2.5;
-            } else {
+          } else {
               modalScale = 1;
               modalTranslateX = 0;
               modalTranslateY = 0;
