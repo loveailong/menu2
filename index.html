@@ -85,7 +85,6 @@
       width: 100%;
       height: 100%;
       background-color: rgba(0, 0, 0, 0.95);
-      overflow: hidden;
     }
     .modal.show {
       display: flex;
@@ -99,14 +98,16 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      overflow: hidden;
     }
     .modal-image {
-      max-width: 100%;
-      max-height: 100%;
+      width: auto;
+      height: auto;
+      max-width: 95vw;
+      max-height: 95vh;
       object-fit: contain;
       touch-action: none;
       will-change: transform;
+      transform-origin: center center;
     }
     .modal-image.no-transition {
       transition: none;
@@ -501,11 +502,19 @@
       // ========== 模态框功能 ==========
       function openModal(imgSrc) {
         modal.classList.add("show");
-        modalImg.src = imgSrc;
         modalScale = 1;
         modalTranslateX = 0;
         modalTranslateY = 0;
+        
+        // 先设置src
+        modalImg.src = imgSrc;
+        
+        // 确保图片可见并重置transform
+        modalImg.style.opacity = "1";
+        modalImg.style.visibility = "visible";
+        modalImg.classList.remove("no-transition");
         updateModalTransform();
+        
         clearInterval(timer);
       }
 
@@ -674,8 +683,16 @@
       });
 
       function updateModalTransform() {
-        modalImg.style.transform = `translate(${modalTranslateX}px, ${modalTranslateY}px) scale(${modalScale})`;
+        // 始终应用transform，即使是初始值
+        const transform = `translate(${modalTranslateX}px, ${modalTranslateY}px) scale(${modalScale})`;
+        modalImg.style.transform = transform;
+        modalImg.style.webkitTransform = transform; // Safari兼容
         modalImg.style.cursor = modalScale > 1 ? "grab" : "default";
+        
+        // 确保图片可见
+        modalImg.style.display = "block";
+        modalImg.style.visibility = "visible";
+        modalImg.style.opacity = "1";
       }
     }
 
