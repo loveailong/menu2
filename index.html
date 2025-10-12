@@ -71,10 +71,10 @@
       transition: opacity 0.8s ease-in-out, transform 0.3s ease;
     }
 
-    /* 手机端图片优化 */
+    /* 手机端图片优化 - 保持比例 */
     @media (max-width: 768px) {
       .slider img {
-        object-fit: cover;
+        object-fit: contain;
         object-position: center;
       }
     }
@@ -147,6 +147,12 @@
     let currentScale = 1;
     let isZooming = false;
     let zoomTimer = null;
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let currentTranslateX = 0;
+    let currentTranslateY = 0;
+    let lastTapTime = 0;
 
 
     async function loadImages() {
@@ -169,9 +175,30 @@
         img.src = imgUrl;
         if (i === 0) img.classList.add("active");
 
-        // 添加点击放大功能
-        img.addEventListener("click", () => {
-          openModal(imgUrl);
+        // 添加双击重置和单击放大功能
+        img.addEventListener("click", (e) => {
+          const currentTime = new Date().getTime();
+          const tapLength = currentTime - lastTapTime;
+
+          if (tapLength < 500 && tapLength > 0) {
+            // 双击重置缩放和位移
+            e.preventDefault();
+            currentScale = 1;
+            currentTranslateX = 0;
+            currentTranslateY = 0;
+            img.style.transform = "scale(1) translate(0px, 0px)";
+
+            // 重置后恢复自动播放
+            clearTimeout(zoomTimer);
+            zoomTimer = setTimeout(() => {
+              startAutoPlay();
+            }, 2000);
+          } else {
+            // 单击放大
+            openModal(imgUrl);
+          }
+
+          lastTapTime = currentTime;
         });
 
         slider.appendChild(img);
@@ -185,15 +212,18 @@
       const sliderImgs = document.querySelectorAll(".slider img");
       if (sliderImgs.length === 0) return;
 
-      // 重置当前图片的缩放
-      sliderImgs[index].style.transform = "scale(1)";
+      // 重置当前图片的缩放和位移
+      sliderImgs[index].style.transform = "scale(1) translate(0px, 0px)";
       sliderImgs[index].classList.remove("active");
 
       index = (newIndex + images.length) % images.length;
       sliderImgs[index].classList.add("active");
 
-      // 重置缩放相关变量
+      // 重置缩放和拖拽相关变量
       currentScale = 1;
+      currentTranslateX = 0;
+      currentTranslateY = 0;
+      isDragging = false;
     }
 
     function startAutoPlay() {
@@ -222,8 +252,20 @@
       slider.addEventListener("touchstart", e => {
         if (e.touches.length === 1) {
           // 单指触摸
-          startX = e.touches[0].clientX;
-          isZooming = false;
+          const touch = e.touches[0];
+          startX = touch.clientX;
+          dragStartX = touch.clientX;
+          dragStartY = touch.clientY;
+
+          // 如果图片已经缩放，准备拖拽
+          if (currentScale > 1) {
+            isDragging = true;
+            isZooming = false;
+            e.preventDefault(); // 防止滚动
+          } else {
+            isDragging = false;
+            isZooming = false;
+          }
         } else if (e.touches.length === 2) {
           // 双指触摸 - 立即阻止默认行为和事件传播
           e.preventDefault();
@@ -231,6 +273,7 @@
 
           initialDistance = getDistance(e.touches[0], e.touches[1]);
           isZooming = true;
+          isDragging = false;
 
           // 暂停自动播放
           clearInterval(timer);
@@ -238,8 +281,9 @@
 
           const activeImg = document.querySelector(".slider img.active");
           if (activeImg) {
-            currentScale = activeImg.style.transform ?
-              parseFloat(activeImg.style.transform.match(/scale\(([^)]+)\)/)?.[1] || 1) : 1;
+            const transform = activeImg.style.transform;
+            const scaleMatch = transform.match(/scale\(([^)]+)\)/);
+            currentScale = scaleMatch ? parseFloat(scaleMatch[1]) : 1;
           }
         }
       });
@@ -257,7 +301,23 @@
           const scale = currentScale * (currentDistance / initialDistance);
           const newScale = Math.max(0.5, Math.min(3, scale));
 
-          activeImg.style.transform = `scale(${newScale})`;
+          activeImg.style.transform = `scale(${newScale}) translate(${currentTranslateX}px, ${currentTranslateY}px)`;
+        } else if (e.touches.length === 1 && isDragging && currentScale > 1) {
+          // 单指拖拽缩放后的图片
+          e.preventDefault();
+          e.stopPropagation();
+
+          const touch = e.touches[0];
+          const deltaX = touch.clientX - dragStartX;
+          const deltaY = touch.clientY - dragStartY;
+
+          const newTranslateX = currentTranslateX + deltaX;
+          const newTranslateY = currentTranslateY + deltaY;
+
+          const activeImg = document.querySelector(".slider img.active");
+          if (activeImg) {
+            activeImg.style.transform = `scale(${currentScale}) translate(${newTranslateX}px, ${newTranslateY}px)`;
+          }
         } else if (e.touches.length === 1 && isZooming) {
           // 如果从双指变成单指，阻止滑动
           e.preventDefault();
@@ -276,8 +336,15 @@
             isZooming = false;
             const activeImg = document.querySelector(".slider img.active");
             if (activeImg) {
-              currentScale = activeImg.style.transform ?
-                parseFloat(activeImg.style.transform.match(/scale\(([^)]+)\)/)?.[1] || 1) : 1;
+              const transform = activeImg.style.transform;
+              const scaleMatch = transform.match(/scale\(([^)]+)\)/);
+              currentScale = scaleMatch ? parseFloat(scaleMatch[1]) : 1;
+
+              // 提取当前的位移值
+              const translateXMatch = transform.match(/translate\(([^,]+)px/);
+              const translateYMatch = transform.match(/translate\([^,]+px,\s*([^)]+)px\)/);
+              currentTranslateX = translateXMatch ? parseFloat(translateXMatch[1]) : 0;
+              currentTranslateY = translateYMatch ? parseFloat(translateYMatch[1]) : 0;
             }
 
             // 缩放结束后5秒恢复自动播放（延长时间避免误触）
@@ -285,8 +352,25 @@
               startAutoPlay();
             }, 5000);
           }
-        } else if (e.touches.length === 0 && !isZooming) {
-          // 纯单指滑动结束
+        } else if (isDragging && e.touches.length === 0) {
+          // 拖拽结束
+          e.preventDefault();
+          e.stopPropagation();
+
+          const touch = e.changedTouches[0];
+          const deltaX = touch.clientX - dragStartX;
+          const deltaY = touch.clientY - dragStartY;
+
+          currentTranslateX += deltaX;
+          currentTranslateY += deltaY;
+          isDragging = false;
+
+          // 拖拽结束后5秒恢复自动播放
+          zoomTimer = setTimeout(() => {
+            startAutoPlay();
+          }, 5000);
+        } else if (e.touches.length === 0 && !isZooming && !isDragging && currentScale <= 1) {
+          // 纯单指滑动结束（只有在未缩放状态下才切换图片）
           endX = e.changedTouches[0].clientX;
           const diff = endX - startX;
 
@@ -316,8 +400,9 @@
 
         const delta = e.deltaY > 0 ? -0.1 : 0.1;
         const newScale = Math.max(0.5, Math.min(3, currentScale + delta));
+        currentScale = newScale;
 
-        activeImg.style.transform = `scale(${newScale})`;
+        activeImg.style.transform = `scale(${newScale}) translate(${currentTranslateX}px, ${currentTranslateY}px)`;
 
         // 滚轮缩放后3秒恢复自动播放
         zoomTimer = setTimeout(() => {
