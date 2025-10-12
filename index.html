@@ -124,8 +124,6 @@
     let index = 0;
     let images = [];
     let timer;
-    let startX = 0;
-    let endX = 0;
 
     async function loadImages() {
       const url = `https://api.github.com/repos/${username}/${repo}/contents/${folder}`;
@@ -150,8 +148,7 @@
       });
 
       startAutoPlay();
-      addSwipeSupport();
-      setupImageViewer(); // 在图片加载完成后设置点击事件
+      setupImageViewer(); // 在图片加载完成后设置点击和滑动事件
     }
 
     function showImage(newIndex) {
@@ -172,32 +169,6 @@
       startAutoPlay();
     }
 
-    function addSwipeSupport() {
-      const slider = document.getElementById("slider");
-      let touchStartTime = 0;
-
-      slider.addEventListener("touchstart", e => {
-        startX = e.touches[0].clientX;
-        touchStartTime = Date.now();
-      });
-
-      slider.addEventListener("touchend", e => {
-        endX = e.changedTouches[0].clientX;
-        const diff = endX - startX;
-        const touchDuration = Date.now() - touchStartTime;
-
-        // 只有滑动距离超过50px才算滑动，否则算点击
-        if (Math.abs(diff) > 50 && touchDuration < 300) {
-          if (diff > 0) {
-            showImage(index - 1); // 向右滑，上一张
-          } else {
-            showImage(index + 1); // 向左滑，下一张
-          }
-          resetTimer();
-        }
-      });
-    }
-
     // 图片查看功能
     function setupImageViewer() {
       const modal = document.getElementById("imageModal");
@@ -214,29 +185,48 @@
       let translateY = 0;
       let lastDistance = 0;
 
-      // 点击轮播图片打开模态框
-      let clickStartX = 0;
-      let clickStartY = 0;
-      let clickStartTime = 0;
+      // 统一处理滑动和点击
+      let touchStartX = 0;
+      let touchStartY = 0;
+      let touchStartTime = 0;
 
-      // 触摸点击
+      // 触摸开始
       slider.addEventListener("touchstart", (e) => {
-        clickStartX = e.touches[0].clientX;
-        clickStartY = e.touches[0].clientY;
-        clickStartTime = Date.now();
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchStartTime = Date.now();
+        console.log("触摸开始");
       });
 
+      // 触摸结束：判断是滑动还是点击
       slider.addEventListener("touchend", (e) => {
-        const endX = e.changedTouches[0].clientX;
-        const endY = e.changedTouches[0].clientY;
-        const diffX = Math.abs(endX - clickStartX);
-        const diffY = Math.abs(endY - clickStartY);
-        const duration = Date.now() - clickStartTime;
+        const touchEndX = e.changedTouches[0].clientX;
+        const touchEndY = e.changedTouches[0].clientY;
+        const diffX = touchEndX - touchStartX;
+        const diffY = touchEndY - touchStartY;
+        const absDiffX = Math.abs(diffX);
+        const absDiffY = Math.abs(diffY);
+        const duration = Date.now() - touchStartTime;
         
-        // 移动距离小于10px且时间小于300ms才算点击
-        if (diffX < 10 && diffY < 10 && duration < 300) {
-          const target = document.elementFromPoint(endX, endY);
+        console.log(`触摸结束 - diffX: ${absDiffX}, diffY: ${absDiffY}, duration: ${duration}`);
+        
+        // 水平滑动距离超过50px：切换图片
+        if (absDiffX > 50 && absDiffX > absDiffY && duration < 500) {
+          console.log("检测到滑动");
+          if (diffX > 0) {
+            showImage(index - 1); // 向右滑，上一张
+          } else {
+            showImage(index + 1); // 向左滑，下一张
+          }
+          resetTimer();
+        }
+        // 移动距离小且时间短：点击打开图片
+        else if (absDiffX < 15 && absDiffY < 15 && duration < 300) {
+          console.log("检测到点击");
+          const target = document.elementFromPoint(touchEndX, touchEndY);
+          console.log("目标元素:", target);
           if (target && target.tagName === "IMG" && target.classList.contains("active")) {
+            console.log("打开模态框");
             openModal(target.src);
           }
         }
@@ -250,6 +240,7 @@
       });
 
       function openModal(imgSrc) {
+        console.log("openModal 被调用，图片URL:", imgSrc);
         modal.classList.add("show");
         modalImg.src = imgSrc;
         scale = 1;
@@ -257,6 +248,7 @@
         translateY = 0;
         updateTransform();
         clearInterval(timer); // 暂停轮播
+        console.log("模态框应该已显示，modal.classList:", modal.classList);
       }
 
       // 关闭模态框
