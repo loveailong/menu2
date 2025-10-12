@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="UTF-8">
   <title>图片轮播展示</title>
@@ -13,8 +14,10 @@
       height: 100vh;
       overflow: hidden;
       flex-direction: column;
-      touch-action: pan-y; /* 防止浏览器滑动冲突 */
+      touch-action: pan-y;
+      /* 防止浏览器滑动冲突 */
     }
+
     .slider {
       width: 90vw;
       height: 85vh;
@@ -23,6 +26,7 @@
       border-radius: 12px;
       box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
     }
+
     .slider img {
       width: 100%;
       height: 100%;
@@ -30,16 +34,22 @@
       position: absolute;
       opacity: 0;
       transition: opacity 0.8s ease-in-out;
+      cursor: pointer;
+      transform-origin: center center;
+      transition: opacity 0.8s ease-in-out, transform 0.3s ease;
     }
+
     .slider img.active {
       opacity: 1;
     }
+
     .buttons {
       margin-top: 10px;
       display: flex;
       justify-content: center;
       gap: 20px;
     }
+
     button {
       background-color: #222;
       color: white;
@@ -50,16 +60,61 @@
       cursor: pointer;
       transition: background-color 0.3s;
     }
+
     button:hover {
       background-color: #444;
     }
+
+    /* 放大模态框样式 */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.9);
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      max-width: 95%;
+      max-height: 95%;
+      object-fit: contain;
+      transform-origin: center center;
+      transition: transform 0.3s ease;
+    }
+
+    .close {
+      position: absolute;
+      top: 20px;
+      right: 35px;
+      color: #fff;
+      font-size: 40px;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 1001;
+    }
+
+    .close:hover {
+      color: #ccc;
+    }
   </style>
 </head>
+
 <body>
   <div class="slider" id="slider"></div>
   <div class="buttons">
     <button id="prevBtn">上一张</button>
     <button id="nextBtn">下一张</button>
+  </div>
+
+  <!-- 放大模态框 -->
+  <div id="imageModal" class="modal">
+    <span class="close" id="closeModal">&times;</span>
+    <img class="modal-content" id="modalImage">
   </div>
 
   <script>
@@ -92,6 +147,12 @@
         const img = document.createElement("img");
         img.src = imgUrl;
         if (i === 0) img.classList.add("active");
+
+        // 添加点击放大功能
+        img.addEventListener("click", () => {
+          openModal(imgUrl);
+        });
+
         slider.appendChild(img);
       });
 
@@ -109,7 +170,7 @@
     }
 
     function startAutoPlay() {
-      timer = setInterval(() => showImage(index + 1), 3000);
+      timer = setInterval(() => showImage(index + 1), 6000); // 改为6秒
     }
 
     function resetTimer() {
@@ -147,9 +208,68 @@
           resetTimer();
         }
       });
+
+      // 添加滚轮缩放功能
+      slider.addEventListener("wheel", e => {
+        e.preventDefault();
+        const activeImg = document.querySelector(".slider img.active");
+        if (!activeImg) return;
+
+        const currentScale = activeImg.style.transform ?
+          parseFloat(activeImg.style.transform.match(/scale\(([^)]+)\)/)?.[1] || 1) : 1;
+
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        const newScale = Math.max(0.5, Math.min(3, currentScale + delta));
+
+        activeImg.style.transform = `scale(${newScale})`;
+      });
     }
+
+    // 模态框功能
+    function openModal(imgSrc) {
+      const modal = document.getElementById("imageModal");
+      const modalImg = document.getElementById("modalImage");
+
+      modal.style.display = "flex";
+      modalImg.src = imgSrc;
+      modalImg.style.transform = "scale(1)";
+
+      // 暂停自动播放
+      clearInterval(timer);
+    }
+
+    function closeModal() {
+      const modal = document.getElementById("imageModal");
+      modal.style.display = "none";
+
+      // 恢复自动播放
+      startAutoPlay();
+    }
+
+    // 模态框事件监听
+    document.getElementById("closeModal").addEventListener("click", closeModal);
+
+    document.getElementById("imageModal").addEventListener("click", e => {
+      if (e.target.id === "imageModal") {
+        closeModal();
+      }
+    });
+
+    // 模态框内图片缩放
+    document.getElementById("modalImage").addEventListener("wheel", e => {
+      e.preventDefault();
+      const img = e.target;
+      const currentScale = img.style.transform ?
+        parseFloat(img.style.transform.match(/scale\(([^)]+)\)/)?.[1] || 1) : 1;
+
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      const newScale = Math.max(0.3, Math.min(5, currentScale + delta));
+
+      img.style.transform = `scale(${newScale})`;
+    });
 
     loadImages();
   </script>
 </body>
+
 </html>
