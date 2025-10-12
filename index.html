@@ -3,6 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
   <title>图片轮播展示</title>
   <style>
     body {
@@ -16,15 +17,13 @@
       flex-direction: column;
       touch-action: manipulation;
       /* 允许双指缩放 */
-      padding: 10px;
+      padding: 5px;
       box-sizing: border-box;
     }
 
     .slider {
-      width: 100%;
-      max-width: 90vw;
-      height: 70vh;
-      max-height: 600px;
+      width: 90vw;
+      height: 75vh;
       position: relative;
       overflow: hidden;
       border-radius: 12px;
@@ -32,34 +31,77 @@
       touch-action: pan-x pan-y pinch-zoom;
     }
 
-    /* 手机端优化 */
+    /* 手机端优化 - 占满屏幕 */
     @media (max-width: 768px) {
       body {
-        padding: 5px;
+        padding: 2px;
+        min-height: 100vh;
+        height: 100vh;
       }
 
       .slider {
-        width: 95vw;
-        height: 60vh;
-        border-radius: 8px;
+        width: 98vw;
+        height: 85vh;
+        border-radius: 6px;
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
       }
 
       .buttons {
-        margin-top: 15px;
-        gap: 15px;
+        margin-top: 8px;
+        gap: 12px;
+        position: fixed;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 100;
+      }
+
+      button {
+        padding: 14px 24px;
+        font-size: 16px;
+        border-radius: 8px;
+        min-width: 90px;
+        background-color: rgba(34, 34, 34, 0.9);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      button:hover,
+      button:active {
+        background-color: rgba(68, 68, 68, 0.9);
+      }
+
+      .close {
+        top: 15px;
+        right: 15px;
+        font-size: 35px;
+        background-color: rgba(0, 0, 0, 0.5);
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+
+    /* 超小屏幕优化 */
+    @media (max-width: 480px) {
+      .slider {
+        width: 99vw;
+        height: 88vh;
+        border-radius: 4px;
+      }
+
+      .buttons {
+        bottom: 5px;
+        gap: 10px;
       }
 
       button {
         padding: 12px 20px;
-        font-size: 14px;
-        border-radius: 6px;
+        font-size: 15px;
         min-width: 80px;
-      }
-
-      .close {
-        top: 10px;
-        right: 20px;
-        font-size: 30px;
       }
     }
 
@@ -69,10 +111,17 @@
       object-fit: contain;
       position: absolute;
       opacity: 0;
-      transition: opacity 0.8s ease-in-out;
       cursor: pointer;
       transform-origin: center center;
       transition: opacity 0.8s ease-in-out, transform 0.3s ease;
+    }
+
+    /* 手机端图片优化 */
+    @media (max-width: 768px) {
+      .slider img {
+        object-fit: cover;
+        object-position: center;
+      }
     }
 
     .slider img.active {
@@ -84,6 +133,7 @@
       display: flex;
       justify-content: center;
       gap: 20px;
+      flex-shrink: 0;
     }
 
     button {
@@ -145,6 +195,7 @@
   <div class="buttons">
     <button id="prevBtn">上一张</button>
     <button id="nextBtn">下一张</button>
+    <button id="fitBtn" onclick="toggleFitMode()">适应</button>
   </div>
 
   <!-- 放大模态框 -->
@@ -167,6 +218,7 @@
     let currentScale = 1;
     let isZooming = false;
     let zoomTimer = null;
+    let fitMode = 'cover'; // 'cover' 或 'contain'
 
     async function loadImages() {
       const url = `https://api.github.com/repos/${username}/${repo}/contents/${folder}`;
@@ -424,6 +476,26 @@
             parseFloat(modalImg.style.transform.match(/scale\(([^)]+)\)/)?.[1] || 1) : 1;
         }
       });
+    }
+
+    // 切换图片适应模式
+    function toggleFitMode() {
+      const images = document.querySelectorAll('.slider img');
+      const fitBtn = document.getElementById('fitBtn');
+
+      if (fitMode === 'cover') {
+        fitMode = 'contain';
+        fitBtn.textContent = '填充';
+        images.forEach(img => {
+          img.style.objectFit = 'contain';
+        });
+      } else {
+        fitMode = 'cover';
+        fitBtn.textContent = '适应';
+        images.forEach(img => {
+          img.style.objectFit = 'cover';
+        });
+      }
     }
 
     // 初始化模态框缩放功能
