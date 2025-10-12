@@ -105,8 +105,11 @@
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
-      transition: transform 0.3s ease;
       touch-action: none;
+      will-change: transform;
+    }
+    .modal-image.no-transition {
+      transition: none;
     }
     .close-btn {
       position: absolute;
@@ -545,6 +548,9 @@
       let modalIsPinching = false;
 
       modalImg.addEventListener("touchstart", (e) => {
+        // 触摸开始时禁用过渡效果
+        modalImg.classList.add("no-transition");
+        
         if (e.touches.length === 2) {
           // 双指缩放
           modalIsPinching = true;
@@ -589,6 +595,9 @@
 
         if (e.touches.length === 0) {
           modalIsDragging = false;
+          
+          // 触摸结束后移除no-transition类，恢复过渡效果
+          modalImg.classList.remove("no-transition");
 
           // 只有真的缩小到1以下才重置
           if (modalScale < 1) {
@@ -644,6 +653,7 @@
           mouseStartX = e.clientX - modalTranslateX;
           mouseStartY = e.clientY - modalTranslateY;
           modalImg.style.cursor = "grabbing";
+          modalImg.classList.add("no-transition"); // 禁用过渡
         }
       });
 
@@ -656,8 +666,11 @@
       });
 
       document.addEventListener("mouseup", () => {
-        mouseDragging = false;
-        modalImg.style.cursor = modalScale > 1 ? "grab" : "default";
+        if (mouseDragging) {
+          mouseDragging = false;
+          modalImg.style.cursor = modalScale > 1 ? "grab" : "default";
+          modalImg.classList.remove("no-transition"); // 恢复过渡
+        }
       });
 
       function updateModalTransform() {
