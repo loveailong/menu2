@@ -145,6 +145,129 @@
       border-radius: 20px;
       z-index: 1001;
     }
+    /* 页码指示器 */
+    .page-indicator {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 16px;
+      cursor: pointer;
+      z-index: 998;
+      user-select: none;
+      transition: all 0.3s ease;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+    .page-indicator:hover {
+      background-color: rgba(255, 255, 255, 0.2);
+      transform: translateX(-50%) scale(1.05);
+    }
+    .page-indicator:active {
+      transform: translateX(-50%) scale(0.95);
+    }
+    /* 跳转面板 */
+    .jump-panel {
+      position: fixed;
+      bottom: -100%;
+      left: 0;
+      right: 0;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.85));
+      padding: 30px 20px 40px;
+      z-index: 999;
+      transition: bottom 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      max-height: 60vh;
+      overflow-y: auto;
+      border-top-left-radius: 20px;
+      border-top-right-radius: 20px;
+    }
+    .jump-panel.show {
+      bottom: 0;
+    }
+    .jump-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding: 0 10px;
+    }
+    .jump-panel-title {
+      color: #fff;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .jump-panel-close {
+      color: #fff;
+      font-size: 28px;
+      cursor: pointer;
+      width: 35px;
+      height: 35px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background-color: rgba(255, 255, 255, 0.1);
+      transition: all 0.2s ease;
+    }
+    .jump-panel-close:hover {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+    .jump-panel-close:active {
+      transform: scale(0.9);
+    }
+    .jump-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+      gap: 12px;
+      padding: 10px;
+    }
+    .jump-item {
+      aspect-ratio: 1;
+      background-color: rgba(255, 255, 255, 0.1);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      user-select: none;
+    }
+    .jump-item:hover {
+      background-color: rgba(255, 255, 255, 0.25);
+      transform: scale(1.05);
+    }
+    .jump-item:active {
+      transform: scale(0.95);
+    }
+    .jump-item.current {
+      background-color: rgba(66, 153, 225, 0.8);
+      border-color: rgba(66, 153, 225, 1);
+      box-shadow: 0 0 15px rgba(66, 153, 225, 0.5);
+    }
+    /* 遮罩层 */
+    .jump-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 998;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+    .jump-overlay.show {
+      opacity: 1;
+      visibility: visible;
+    }
   </style>
 </head>
 <body>
@@ -152,6 +275,21 @@
   
   <!-- 缩放关闭按钮 -->
   <div class="zoom-close-btn" id="zoomCloseBtn"></div>
+
+  <!-- 页码指示器 -->
+  <div class="page-indicator" id="pageIndicator">1/1</div>
+
+  <!-- 跳转遮罩层 -->
+  <div class="jump-overlay" id="jumpOverlay"></div>
+
+  <!-- 跳转面板 -->
+  <div class="jump-panel" id="jumpPanel">
+    <div class="jump-panel-header">
+      <div class="jump-panel-title">选择图片</div>
+      <div class="jump-panel-close" id="jumpPanelClose">&times;</div>
+    </div>
+    <div class="jump-grid" id="jumpGrid"></div>
+  </div>
 
   <!-- 图片查看模态框 -->
   <div class="modal" id="imageModal">
@@ -193,6 +331,11 @@
         slider.appendChild(img);
       });
 
+      // 初始化页码和跳转功能
+      updatePageIndicator();
+      initJumpPanel();
+      setupJumpPanelEvents();
+      
       startAutoPlay();
       setupImageViewer();
     }
@@ -211,6 +354,90 @@
       
       index = (newIndex + images.length) % images.length;
       sliderImgs[index].classList.add("active");
+      
+      // 更新页码显示
+      updatePageIndicator();
+    }
+    
+    function updatePageIndicator() {
+      const pageIndicator = document.getElementById("pageIndicator");
+      if (pageIndicator && images.length > 0) {
+        pageIndicator.textContent = `${index + 1}/${images.length}`;
+      }
+    }
+    
+    function initJumpPanel() {
+      const jumpGrid = document.getElementById("jumpGrid");
+      jumpGrid.innerHTML = "";
+      
+      for (let i = 0; i < images.length; i++) {
+        const item = document.createElement("div");
+        item.className = "jump-item";
+        item.textContent = i + 1;
+        item.dataset.index = i;
+        
+        item.addEventListener("click", () => {
+          showImage(i);
+          closeJumpPanel();
+          resetTimer();
+        });
+        
+        jumpGrid.appendChild(item);
+      }
+      
+      updateJumpGrid();
+    }
+    
+    function updateJumpGrid() {
+      const items = document.querySelectorAll(".jump-item");
+      items.forEach((item, i) => {
+        if (i === index) {
+          item.classList.add("current");
+        } else {
+          item.classList.remove("current");
+        }
+      });
+    }
+    
+    function openJumpPanel() {
+      const jumpPanel = document.getElementById("jumpPanel");
+      const jumpOverlay = document.getElementById("jumpOverlay");
+      
+      jumpPanel.classList.add("show");
+      jumpOverlay.classList.add("show");
+      updateJumpGrid();
+      
+      // 暂停轮播
+      clearInterval(timer);
+    }
+    
+    function closeJumpPanel() {
+      const jumpPanel = document.getElementById("jumpPanel");
+      const jumpOverlay = document.getElementById("jumpOverlay");
+      
+      jumpPanel.classList.remove("show");
+      jumpOverlay.classList.remove("show");
+    }
+    
+    function setupJumpPanelEvents() {
+      const pageIndicator = document.getElementById("pageIndicator");
+      const jumpPanelClose = document.getElementById("jumpPanelClose");
+      const jumpOverlay = document.getElementById("jumpOverlay");
+      
+      // 点击页码指示器打开跳转面板
+      pageIndicator.addEventListener("click", openJumpPanel);
+      
+      // 点击关闭按钮
+      jumpPanelClose.addEventListener("click", () => {
+        closeJumpPanel();
+        startAutoPlay(); // 恢复轮播
+      });
+      
+      // 点击遮罩层关闭
+      jumpOverlay.addEventListener("click", () => {
+        closeJumpPanel();
+        startAutoPlay(); // 恢复轮播
+      });
     }
 
     function startAutoPlay() {
