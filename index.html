@@ -1,973 +1,973 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-  <title>菜单展示</title>
-  <style>
-    body {
-      margin: 0;
-      background-color: #000;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      overflow: hidden;
-      flex-direction: column;
-    }
-    .slider {
-      width: 90vw;
-      height: 95vh;
-      position: relative;
-      overflow: hidden;
-      border-radius: 12px;
-      box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
-    }
-    .slider img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      position: absolute;
-      opacity: 0;
-      transition: opacity 0.8s ease-in-out;
-      cursor: pointer;
-      touch-action: none;
-    }
-    .slider img.active {
-      opacity: 1;
-    }
-    /* 缩放关闭按钮 */
-    .zoom-close-btn {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      width: 50px;
-      height: 50px;
-      background-color: rgba(0, 0, 0, 0.6);
-      border-radius: 50%;
-      display: none;
-      justify-content: center;
-      align-items: center;
-      cursor: pointer;
-      z-index: 999;
-      transition: all 0.3s ease;
-      border: 2px solid rgba(255, 255, 255, 0.3);
-    }
-    .zoom-close-btn.show {
-      display: flex;
-    }
-    .zoom-close-btn:active {
-      background-color: rgba(255, 255, 255, 0.2);
-      transform: scale(0.9);
-    }
-    .zoom-close-btn::before,
-    .zoom-close-btn::after {
-      content: '';
-      position: absolute;
-      width: 24px;
-      height: 3px;
-      background-color: #fff;
-      border-radius: 2px;
-    }
-    .zoom-close-btn::before {
-      transform: rotate(45deg);
-    }
-    .zoom-close-btn::after {
-      transform: rotate(-45deg);
-    }
-    /* 模态框样式 */
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 1000;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.95);
-    }
-    .modal.show {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    .modal-content {
-      position: relative;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    .modal-image {
-      width: auto;
-      height: auto;
-      max-width: 95vw;
-      max-height: 95vh;
-      object-fit: contain;
-      touch-action: none;
-      will-change: transform;
-      transform-origin: center center;
-    }
-    .modal-image.no-transition {
-      transition: none;
-    }
-    .close-btn {
-      position: absolute;
-      top: 20px;
-      right: 30px;
-      color: #fff;
-      font-size: 40px;
-      font-weight: bold;
-      cursor: pointer;
-      z-index: 1001;
-      background-color: rgba(0, 0, 0, 0.5);
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      line-height: 1;
-    }
-    .close-btn:hover {
-      background-color: rgba(255, 255, 255, 0.2);
-    }
-    .zoom-hint {
-      position: absolute;
-      bottom: 30px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: #fff;
-      font-size: 14px;
-      background-color: rgba(0, 0, 0, 0.7);
-      padding: 10px 20px;
-      border-radius: 20px;
-      z-index: 1001;
-    }
-    /* 页码指示器 */
-    .page-indicator {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background-color: rgba(0, 0, 0, 0.7);
-      color: #fff;
-      padding: 10px 24px;
-      border-radius: 25px;
-      font-size: 15px;
-      cursor: pointer;
-      z-index: 998;
-      user-select: none;
-      transition: all 0.3s ease;
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      white-space: nowrap;
-      max-width: 90vw;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .page-indicator:hover {
-      background-color: rgba(255, 255, 255, 0.2);
-      transform: translateX(-50%) scale(1.05);
-    }
-    .page-indicator:active {
-      transform: translateX(-50%) scale(0.95);
-    }
-    /* 跳转面板 */
-    .jump-panel {
-      position: fixed;
-      bottom: -100%;
-      left: 0;
-      right: 0;
-      background: linear-gradient(to top, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.85));
-      padding: 20px 15px 30px;
-      z-index: 999;
-      transition: bottom 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-      border-top-left-radius: 20px;
-      border-top-right-radius: 20px;
-      display: flex;
-      flex-direction: column;
-    }
-    .jump-panel.show {
-      bottom: 0;
-    }
-    .jump-panel-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 15px;
-      padding: 0 5px;
-      flex-shrink: 0;
-    }
-    .jump-panel-title {
-      color: #fff;
-      font-size: 16px;
-      font-weight: bold;
-    }
-    .jump-panel-close {
-      color: #fff;
-      font-size: 28px;
-      cursor: pointer;
-      width: 35px;
-      height: 35px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 50%;
-      background-color: rgba(255, 255, 255, 0.1);
-      transition: all 0.2s ease;
-    }
-    .jump-panel-close:hover {
-      background-color: rgba(255, 255, 255, 0.2);
-    }
-    .jump-panel-close:active {
-      transform: scale(0.9);
-    }
-    .jump-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      padding: 5px;
-      overflow-y: auto;
-      overflow-x: hidden;
-      max-height: calc(2 * 60px + 12px);
-      -webkit-overflow-scrolling: touch;
-    }
-    .jump-item {
-      height: 60px;
-      padding: 10px 8px;
-      background-color: rgba(255, 255, 255, 0.1);
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      font-size: 15px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      user-select: none;
-      text-align: center;
-      word-break: break-word;
-      line-height: 1.2;
-    }
-    .jump-item:hover {
-      background-color: rgba(255, 255, 255, 0.25);
-      transform: scale(1.05);
-    }
-    .jump-item:active {
-      transform: scale(0.95);
-    }
-    .jump-item.current {
-      background-color: rgba(66, 153, 225, 0.8);
-      border-color: rgba(66, 153, 225, 1);
-      box-shadow: 0 0 15px rgba(66, 153, 225, 0.5);
-    }
-    /* 遮罩层 */
-    .jump-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: rgba(0, 0, 0, 0.5);
-      z-index: 998;
-      opacity: 0;
-      visibility: hidden;
-      transition: all 0.3s ease;
-    }
-    .jump-overlay.show {
-      opacity: 1;
-      visibility: visible;
-    }
-    /* 自定义滚动条样式 */
-    .jump-grid::-webkit-scrollbar {
-      width: 6px;
-    }
-    .jump-grid::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 3px;
-    }
-    .jump-grid::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.3);
-      border-radius: 3px;
-    }
-    .jump-grid::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.5);
-    }
-  </style>
-</head>
-<body>
-  <div class="slider" id="slider"></div>
-  
-  <!-- 缩放关闭按钮 -->
-  <div class="zoom-close-btn" id="zoomCloseBtn"></div>
+<!--<!DOCTYPE html>-->
+<!--<html lang="zh-CN">-->
+<!--<head>-->
+<!--  <meta charset="UTF-8">-->
+<!--  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">-->
+<!--  <title>菜单展示</title>-->
+<!--  <style>-->
+<!--    body {-->
+<!--      margin: 0;-->
+<!--      background-color: #000;-->
+<!--      display: flex;-->
+<!--      justify-content: center;-->
+<!--      align-items: center;-->
+<!--      height: 100vh;-->
+<!--      overflow: hidden;-->
+<!--      flex-direction: column;-->
+<!--    }-->
+<!--    .slider {-->
+<!--      width: 90vw;-->
+<!--      height: 95vh;-->
+<!--      position: relative;-->
+<!--      overflow: hidden;-->
+<!--      border-radius: 12px;-->
+<!--      box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);-->
+<!--    }-->
+<!--    .slider img {-->
+<!--      width: 100%;-->
+<!--      height: 100%;-->
+<!--      object-fit: contain;-->
+<!--      position: absolute;-->
+<!--      opacity: 0;-->
+<!--      transition: opacity 0.8s ease-in-out;-->
+<!--      cursor: pointer;-->
+<!--      touch-action: none;-->
+<!--    }-->
+<!--    .slider img.active {-->
+<!--      opacity: 1;-->
+<!--    }-->
+<!--    /* 缩放关闭按钮 */-->
+<!--    .zoom-close-btn {-->
+<!--      position: fixed;-->
+<!--      top: 20px;-->
+<!--      right: 20px;-->
+<!--      width: 50px;-->
+<!--      height: 50px;-->
+<!--      background-color: rgba(0, 0, 0, 0.6);-->
+<!--      border-radius: 50%;-->
+<!--      display: none;-->
+<!--      justify-content: center;-->
+<!--      align-items: center;-->
+<!--      cursor: pointer;-->
+<!--      z-index: 999;-->
+<!--      transition: all 0.3s ease;-->
+<!--      border: 2px solid rgba(255, 255, 255, 0.3);-->
+<!--    }-->
+<!--    .zoom-close-btn.show {-->
+<!--      display: flex;-->
+<!--    }-->
+<!--    .zoom-close-btn:active {-->
+<!--      background-color: rgba(255, 255, 255, 0.2);-->
+<!--      transform: scale(0.9);-->
+<!--    }-->
+<!--    .zoom-close-btn::before,-->
+<!--    .zoom-close-btn::after {-->
+<!--      content: '';-->
+<!--      position: absolute;-->
+<!--      width: 24px;-->
+<!--      height: 3px;-->
+<!--      background-color: #fff;-->
+<!--      border-radius: 2px;-->
+<!--    }-->
+<!--    .zoom-close-btn::before {-->
+<!--      transform: rotate(45deg);-->
+<!--    }-->
+<!--    .zoom-close-btn::after {-->
+<!--      transform: rotate(-45deg);-->
+<!--    }-->
+<!--    /* 模态框样式 */-->
+<!--    .modal {-->
+<!--      display: none;-->
+<!--      position: fixed;-->
+<!--      z-index: 1000;-->
+<!--      left: 0;-->
+<!--      top: 0;-->
+<!--      width: 100%;-->
+<!--      height: 100%;-->
+<!--      background-color: rgba(0, 0, 0, 0.95);-->
+<!--    }-->
+<!--    .modal.show {-->
+<!--      display: flex;-->
+<!--      justify-content: center;-->
+<!--      align-items: center;-->
+<!--    }-->
+<!--    .modal-content {-->
+<!--      position: relative;-->
+<!--      width: 100%;-->
+<!--      height: 100%;-->
+<!--      display: flex;-->
+<!--      justify-content: center;-->
+<!--      align-items: center;-->
+<!--    }-->
+<!--    .modal-image {-->
+<!--      width: auto;-->
+<!--      height: auto;-->
+<!--      max-width: 95vw;-->
+<!--      max-height: 95vh;-->
+<!--      object-fit: contain;-->
+<!--      touch-action: none;-->
+<!--      will-change: transform;-->
+<!--      transform-origin: center center;-->
+<!--    }-->
+<!--    .modal-image.no-transition {-->
+<!--      transition: none;-->
+<!--    }-->
+<!--    .close-btn {-->
+<!--      position: absolute;-->
+<!--      top: 20px;-->
+<!--      right: 30px;-->
+<!--      color: #fff;-->
+<!--      font-size: 40px;-->
+<!--      font-weight: bold;-->
+<!--      cursor: pointer;-->
+<!--      z-index: 1001;-->
+<!--      background-color: rgba(0, 0, 0, 0.5);-->
+<!--      width: 50px;-->
+<!--      height: 50px;-->
+<!--      border-radius: 50%;-->
+<!--      display: flex;-->
+<!--      justify-content: center;-->
+<!--      align-items: center;-->
+<!--      line-height: 1;-->
+<!--    }-->
+<!--    .close-btn:hover {-->
+<!--      background-color: rgba(255, 255, 255, 0.2);-->
+<!--    }-->
+<!--    .zoom-hint {-->
+<!--      position: absolute;-->
+<!--      bottom: 30px;-->
+<!--      left: 50%;-->
+<!--      transform: translateX(-50%);-->
+<!--      color: #fff;-->
+<!--      font-size: 14px;-->
+<!--      background-color: rgba(0, 0, 0, 0.7);-->
+<!--      padding: 10px 20px;-->
+<!--      border-radius: 20px;-->
+<!--      z-index: 1001;-->
+<!--    }-->
+<!--    /* 页码指示器 */-->
+<!--    .page-indicator {-->
+<!--      position: fixed;-->
+<!--      bottom: 20px;-->
+<!--      left: 50%;-->
+<!--      transform: translateX(-50%);-->
+<!--      background-color: rgba(0, 0, 0, 0.7);-->
+<!--      color: #fff;-->
+<!--      padding: 10px 24px;-->
+<!--      border-radius: 25px;-->
+<!--      font-size: 15px;-->
+<!--      cursor: pointer;-->
+<!--      z-index: 998;-->
+<!--      user-select: none;-->
+<!--      transition: all 0.3s ease;-->
+<!--      border: 2px solid rgba(255, 255, 255, 0.3);-->
+<!--      white-space: nowrap;-->
+<!--      max-width: 90vw;-->
+<!--      overflow: hidden;-->
+<!--      text-overflow: ellipsis;-->
+<!--    }-->
+<!--    .page-indicator:hover {-->
+<!--      background-color: rgba(255, 255, 255, 0.2);-->
+<!--      transform: translateX(-50%) scale(1.05);-->
+<!--    }-->
+<!--    .page-indicator:active {-->
+<!--      transform: translateX(-50%) scale(0.95);-->
+<!--    }-->
+<!--    /* 跳转面板 */-->
+<!--    .jump-panel {-->
+<!--      position: fixed;-->
+<!--      bottom: -100%;-->
+<!--      left: 0;-->
+<!--      right: 0;-->
+<!--      background: linear-gradient(to top, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.85));-->
+<!--      padding: 20px 15px 30px;-->
+<!--      z-index: 999;-->
+<!--      transition: bottom 0.4s cubic-bezier(0.4, 0, 0.2, 1);-->
+<!--      border-top-left-radius: 20px;-->
+<!--      border-top-right-radius: 20px;-->
+<!--      display: flex;-->
+<!--      flex-direction: column;-->
+<!--    }-->
+<!--    .jump-panel.show {-->
+<!--      bottom: 0;-->
+<!--    }-->
+<!--    .jump-panel-header {-->
+<!--      display: flex;-->
+<!--      justify-content: space-between;-->
+<!--      align-items: center;-->
+<!--      margin-bottom: 15px;-->
+<!--      padding: 0 5px;-->
+<!--      flex-shrink: 0;-->
+<!--    }-->
+<!--    .jump-panel-title {-->
+<!--      color: #fff;-->
+<!--      font-size: 16px;-->
+<!--      font-weight: bold;-->
+<!--    }-->
+<!--    .jump-panel-close {-->
+<!--      color: #fff;-->
+<!--      font-size: 28px;-->
+<!--      cursor: pointer;-->
+<!--      width: 35px;-->
+<!--      height: 35px;-->
+<!--      display: flex;-->
+<!--      align-items: center;-->
+<!--      justify-content: center;-->
+<!--      border-radius: 50%;-->
+<!--      background-color: rgba(255, 255, 255, 0.1);-->
+<!--      transition: all 0.2s ease;-->
+<!--    }-->
+<!--    .jump-panel-close:hover {-->
+<!--      background-color: rgba(255, 255, 255, 0.2);-->
+<!--    }-->
+<!--    .jump-panel-close:active {-->
+<!--      transform: scale(0.9);-->
+<!--    }-->
+<!--    .jump-grid {-->
+<!--      display: grid;-->
+<!--      grid-template-columns: repeat(3, 1fr);-->
+<!--      gap: 12px;-->
+<!--      padding: 5px;-->
+<!--      overflow-y: auto;-->
+<!--      overflow-x: hidden;-->
+<!--      max-height: calc(2 * 60px + 12px);-->
+<!--      -webkit-overflow-scrolling: touch;-->
+<!--    }-->
+<!--    .jump-item {-->
+<!--      height: 60px;-->
+<!--      padding: 10px 8px;-->
+<!--      background-color: rgba(255, 255, 255, 0.1);-->
+<!--      border: 2px solid rgba(255, 255, 255, 0.3);-->
+<!--      border-radius: 10px;-->
+<!--      display: flex;-->
+<!--      align-items: center;-->
+<!--      justify-content: center;-->
+<!--      color: #fff;-->
+<!--      font-size: 15px;-->
+<!--      font-weight: bold;-->
+<!--      cursor: pointer;-->
+<!--      transition: all 0.3s ease;-->
+<!--      user-select: none;-->
+<!--      text-align: center;-->
+<!--      word-break: break-word;-->
+<!--      line-height: 1.2;-->
+<!--    }-->
+<!--    .jump-item:hover {-->
+<!--      background-color: rgba(255, 255, 255, 0.25);-->
+<!--      transform: scale(1.05);-->
+<!--    }-->
+<!--    .jump-item:active {-->
+<!--      transform: scale(0.95);-->
+<!--    }-->
+<!--    .jump-item.current {-->
+<!--      background-color: rgba(66, 153, 225, 0.8);-->
+<!--      border-color: rgba(66, 153, 225, 1);-->
+<!--      box-shadow: 0 0 15px rgba(66, 153, 225, 0.5);-->
+<!--    }-->
+<!--    /* 遮罩层 */-->
+<!--    .jump-overlay {-->
+<!--      position: fixed;-->
+<!--      top: 0;-->
+<!--      left: 0;-->
+<!--      right: 0;-->
+<!--      bottom: 0;-->
+<!--      background-color: rgba(0, 0, 0, 0.5);-->
+<!--      z-index: 998;-->
+<!--      opacity: 0;-->
+<!--      visibility: hidden;-->
+<!--      transition: all 0.3s ease;-->
+<!--    }-->
+<!--    .jump-overlay.show {-->
+<!--      opacity: 1;-->
+<!--      visibility: visible;-->
+<!--    }-->
+<!--    /* 自定义滚动条样式 */-->
+<!--    .jump-grid::-webkit-scrollbar {-->
+<!--      width: 6px;-->
+<!--    }-->
+<!--    .jump-grid::-webkit-scrollbar-track {-->
+<!--      background: rgba(255, 255, 255, 0.1);-->
+<!--      border-radius: 3px;-->
+<!--    }-->
+<!--    .jump-grid::-webkit-scrollbar-thumb {-->
+<!--      background: rgba(255, 255, 255, 0.3);-->
+<!--      border-radius: 3px;-->
+<!--    }-->
+<!--    .jump-grid::-webkit-scrollbar-thumb:hover {-->
+<!--      background: rgba(255, 255, 255, 0.5);-->
+<!--    }-->
+<!--  </style>-->
+<!--</head>-->
+<!--<body>-->
+<!--  <div class="slider" id="slider"></div>-->
+<!--  -->
+<!--  &lt;!&ndash; 缩放关闭按钮 &ndash;&gt;-->
+<!--  <div class="zoom-close-btn" id="zoomCloseBtn"></div>-->
 
-  <!-- 页码指示器 -->
-  <div class="page-indicator" id="pageIndicator">1/1</div>
+<!--  &lt;!&ndash; 页码指示器 &ndash;&gt;-->
+<!--  <div class="page-indicator" id="pageIndicator">1/1</div>-->
 
-  <!-- 跳转遮罩层 -->
-  <div class="jump-overlay" id="jumpOverlay"></div>
+<!--  &lt;!&ndash; 跳转遮罩层 &ndash;&gt;-->
+<!--  <div class="jump-overlay" id="jumpOverlay"></div>-->
 
-  <!-- 跳转面板 -->
-  <div class="jump-panel" id="jumpPanel">
-    <div class="jump-panel-header">
-      <div class="jump-panel-title">选择图片</div>
-      <div class="jump-panel-close" id="jumpPanelClose">&times;</div>
-    </div>
-    <div class="jump-grid" id="jumpGrid"></div>
-  </div>
+<!--  &lt;!&ndash; 跳转面板 &ndash;&gt;-->
+<!--  <div class="jump-panel" id="jumpPanel">-->
+<!--    <div class="jump-panel-header">-->
+<!--      <div class="jump-panel-title">选择图片</div>-->
+<!--      <div class="jump-panel-close" id="jumpPanelClose">&times;</div>-->
+<!--    </div>-->
+<!--    <div class="jump-grid" id="jumpGrid"></div>-->
+<!--  </div>-->
 
-  <!-- 图片查看模态框 -->
-  <div class="modal" id="imageModal">
-    <span class="close-btn" id="closeBtn">&times;</span>
-    <div class="modal-content">
-      <img class="modal-image" id="modalImage" src="" alt="">
-    </div>
-    <div class="zoom-hint">双指缩放查看</div>
-  </div>
+<!--  &lt;!&ndash; 图片查看模态框 &ndash;&gt;-->
+<!--  <div class="modal" id="imageModal">-->
+<!--    <span class="close-btn" id="closeBtn">&times;</span>-->
+<!--    <div class="modal-content">-->
+<!--      <img class="modal-image" id="modalImage" src="" alt="">-->
+<!--    </div>-->
+<!--    <div class="zoom-hint">双指缩放查看</div>-->
+<!--  </div>-->
 
-  <script>
-    const username = "loveailong";   // 👈 修改为你的 GitHub 用户名
-    const repo = "menu2";             // 👈 修改为你的仓库名
-    const folder = "images";         // 👈 图片所在文件夹名
-
-
+<!--  <script>-->
+<!--    const username = "loveailong";   // 👈 修改为你的 GitHub 用户名-->
+<!--    const repo = "menu2";             // 👈 修改为你的仓库名-->
+<!--    const folder = "images";         // 👈 图片所在文件夹名-->
 
 
-    //修改
-    // 图片名称配置（可随时修改）
-    const imageNames = [
-      "one", "two", "three",
-      "four", "five", "six",
-      "seven", "eight", "nine",
-      "test"
-    ];
 
-    let index = 0;
-    let images = [];
-    let timer;
 
-    async function loadImages() {
-      const url = `https://api.github.com/repos/${username}/${repo}/contents/${folder}`;
-      const response = await fetch(url);
-      const files = await response.json();
-      const slider = document.getElementById("slider");
+<!--    //修改-->
+<!--    // 图片名称配置（可随时修改）-->
+<!--    const imageNames = [-->
+<!--      "one", "two", "three",-->
+<!--      "four", "five", "six",-->
+<!--      "seven", "eight", "nine",-->
+<!--      "test"-->
+<!--    ];-->
 
-      images = files
-        .filter(file => file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i))
-        .map(file => file.download_url);
+<!--    let index = 0;-->
+<!--    let images = [];-->
+<!--    let timer;-->
 
-      if (images.length === 0) {
-        slider.innerHTML = "<p style='color:white'>没有找到图片</p>";
-        return;
-      }
+<!--    async function loadImages() {-->
+<!--      const url = `https://api.github.com/repos/${username}/${repo}/contents/${folder}`;-->
+<!--      const response = await fetch(url);-->
+<!--      const files = await response.json();-->
+<!--      const slider = document.getElementById("slider");-->
 
-      images.forEach((imgUrl, i) => {
-        const img = document.createElement("img");
-        img.src = imgUrl;
-        if (i === 0) img.classList.add("active");
-        slider.appendChild(img);
-      });
+<!--      images = files-->
+<!--        .filter(file => file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i))-->
+<!--        .map(file => file.download_url);-->
 
-      // 初始化页码和跳转功能
-      updatePageIndicator();
-      initJumpPanel();
-      setupJumpPanelEvents();
-      
-      startAutoPlay();
-      setupImageViewer();
-    }
+<!--      if (images.length === 0) {-->
+<!--        slider.innerHTML = "<p style='color:white'>没有找到图片</p>";-->
+<!--        return;-->
+<!--      }-->
 
-    function showImage(newIndex) {
-      const sliderImgs = document.querySelectorAll(".slider img");
-      if (sliderImgs.length === 0) return;
+<!--      images.forEach((imgUrl, i) => {-->
+<!--        const img = document.createElement("img");-->
+<!--        img.src = imgUrl;-->
+<!--        if (i === 0) img.classList.add("active");-->
+<!--        slider.appendChild(img);-->
+<!--      });-->
 
-      // 重置缩放
-      if (window.resetSliderZoom) {
-        window.resetSliderZoom();
-      }
+<!--      // 初始化页码和跳转功能-->
+<!--      updatePageIndicator();-->
+<!--      initJumpPanel();-->
+<!--      setupJumpPanelEvents();-->
+<!--      -->
+<!--      startAutoPlay();-->
+<!--      setupImageViewer();-->
+<!--    }-->
 
-      sliderImgs[index].classList.remove("active");
-      sliderImgs[index].style.transform = "";
-      
-      index = (newIndex + images.length) % images.length;
-      sliderImgs[index].classList.add("active");
-      
-      // 更新页码显示
-      updatePageIndicator();
-    }
-    
-    function updatePageIndicator() {
-      const pageIndicator = document.getElementById("pageIndicator");
-      if (pageIndicator && images.length > 0) {
-        const currentName = imageNames[index] || `图片${index + 1}`;
-        pageIndicator.textContent = `${currentName} (${index + 1}/${images.length})`;
-      }
-    }
-    
-    function initJumpPanel() {
-      const jumpGrid = document.getElementById("jumpGrid");
-      jumpGrid.innerHTML = "";
-      
-      for (let i = 0; i < images.length; i++) {
-        const item = document.createElement("div");
-        item.className = "jump-item";
-        
-        // 使用配置的名字或默认名字
-        const name = imageNames[i] || `图片${i + 1}`;
-        item.textContent = name;
-        item.dataset.index = i;
-        
-        item.addEventListener("click", () => {
-          showImage(i);
-          closeJumpPanel();
-          resetTimer();
-        });
-        
-        jumpGrid.appendChild(item);
-      }
-      
-      updateJumpGrid();
-    }
-    
-    function updateJumpGrid() {
-      const items = document.querySelectorAll(".jump-item");
-      items.forEach((item, i) => {
-        if (i === index) {
-          item.classList.add("current");
-        } else {
-          item.classList.remove("current");
-        }
-      });
-    }
-    
-    function openJumpPanel() {
-      const jumpPanel = document.getElementById("jumpPanel");
-      const jumpOverlay = document.getElementById("jumpOverlay");
-      
-      jumpPanel.classList.add("show");
-      jumpOverlay.classList.add("show");
-      updateJumpGrid();
-      
-      // 暂停轮播
-      clearInterval(timer);
-    }
-    
-    function closeJumpPanel() {
-      const jumpPanel = document.getElementById("jumpPanel");
-      const jumpOverlay = document.getElementById("jumpOverlay");
-      
-      jumpPanel.classList.remove("show");
-      jumpOverlay.classList.remove("show");
-    }
-    
-    function setupJumpPanelEvents() {
-      const pageIndicator = document.getElementById("pageIndicator");
-      const jumpPanelClose = document.getElementById("jumpPanelClose");
-      const jumpOverlay = document.getElementById("jumpOverlay");
-      
-      // 点击页码指示器打开跳转面板
-      pageIndicator.addEventListener("click", openJumpPanel);
-      
-      // 点击关闭按钮
-      jumpPanelClose.addEventListener("click", () => {
-        closeJumpPanel();
-        startAutoPlay(); // 恢复轮播
-      });
-      
-      // 点击遮罩层关闭
-      jumpOverlay.addEventListener("click", () => {
-        closeJumpPanel();
-        startAutoPlay(); // 恢复轮播
-      });
-    }
+<!--    function showImage(newIndex) {-->
+<!--      const sliderImgs = document.querySelectorAll(".slider img");-->
+<!--      if (sliderImgs.length === 0) return;-->
 
-    function startAutoPlay() {
-      timer = setInterval(() => showImage(index + 1), 6000);
-    }
+<!--      // 重置缩放-->
+<!--      if (window.resetSliderZoom) {-->
+<!--        window.resetSliderZoom();-->
+<!--      }-->
 
-    function resetTimer() {
-      clearInterval(timer);
-      startAutoPlay();
-    }
+<!--      sliderImgs[index].classList.remove("active");-->
+<!--      sliderImgs[index].style.transform = "";-->
+<!--      -->
+<!--      index = (newIndex + images.length) % images.length;-->
+<!--      sliderImgs[index].classList.add("active");-->
+<!--      -->
+<!--      // 更新页码显示-->
+<!--      updatePageIndicator();-->
+<!--    }-->
+<!--    -->
+<!--    function updatePageIndicator() {-->
+<!--      const pageIndicator = document.getElementById("pageIndicator");-->
+<!--      if (pageIndicator && images.length > 0) {-->
+<!--        const currentName = imageNames[index] || `图片${index + 1}`;-->
+<!--        pageIndicator.textContent = `${currentName} (${index + 1}/${images.length})`;-->
+<!--      }-->
+<!--    }-->
+<!--    -->
+<!--    function initJumpPanel() {-->
+<!--      const jumpGrid = document.getElementById("jumpGrid");-->
+<!--      jumpGrid.innerHTML = "";-->
+<!--      -->
+<!--      for (let i = 0; i < images.length; i++) {-->
+<!--        const item = document.createElement("div");-->
+<!--        item.className = "jump-item";-->
+<!--        -->
+<!--        // 使用配置的名字或默认名字-->
+<!--        const name = imageNames[i] || `图片${i + 1}`;-->
+<!--        item.textContent = name;-->
+<!--        item.dataset.index = i;-->
+<!--        -->
+<!--        item.addEventListener("click", () => {-->
+<!--          showImage(i);-->
+<!--          closeJumpPanel();-->
+<!--          resetTimer();-->
+<!--        });-->
+<!--        -->
+<!--        jumpGrid.appendChild(item);-->
+<!--      }-->
+<!--      -->
+<!--      updateJumpGrid();-->
+<!--    }-->
+<!--    -->
+<!--    function updateJumpGrid() {-->
+<!--      const items = document.querySelectorAll(".jump-item");-->
+<!--      items.forEach((item, i) => {-->
+<!--        if (i === index) {-->
+<!--          item.classList.add("current");-->
+<!--        } else {-->
+<!--          item.classList.remove("current");-->
+<!--        }-->
+<!--      });-->
+<!--    }-->
+<!--    -->
+<!--    function openJumpPanel() {-->
+<!--      const jumpPanel = document.getElementById("jumpPanel");-->
+<!--      const jumpOverlay = document.getElementById("jumpOverlay");-->
+<!--      -->
+<!--      jumpPanel.classList.add("show");-->
+<!--      jumpOverlay.classList.add("show");-->
+<!--      updateJumpGrid();-->
+<!--      -->
+<!--      // 暂停轮播-->
+<!--      clearInterval(timer);-->
+<!--    }-->
+<!--    -->
+<!--    function closeJumpPanel() {-->
+<!--      const jumpPanel = document.getElementById("jumpPanel");-->
+<!--      const jumpOverlay = document.getElementById("jumpOverlay");-->
+<!--      -->
+<!--      jumpPanel.classList.remove("show");-->
+<!--      jumpOverlay.classList.remove("show");-->
+<!--    }-->
+<!--    -->
+<!--    function setupJumpPanelEvents() {-->
+<!--      const pageIndicator = document.getElementById("pageIndicator");-->
+<!--      const jumpPanelClose = document.getElementById("jumpPanelClose");-->
+<!--      const jumpOverlay = document.getElementById("jumpOverlay");-->
+<!--      -->
+<!--      // 点击页码指示器打开跳转面板-->
+<!--      pageIndicator.addEventListener("click", openJumpPanel);-->
+<!--      -->
+<!--      // 点击关闭按钮-->
+<!--      jumpPanelClose.addEventListener("click", () => {-->
+<!--        closeJumpPanel();-->
+<!--        startAutoPlay(); // 恢复轮播-->
+<!--      });-->
+<!--      -->
+<!--      // 点击遮罩层关闭-->
+<!--      jumpOverlay.addEventListener("click", () => {-->
+<!--        closeJumpPanel();-->
+<!--        startAutoPlay(); // 恢复轮播-->
+<!--      });-->
+<!--    }-->
 
-    // 计算两点距离
-    function getDistance(touch1, touch2) {
-      const dx = touch1.clientX - touch2.clientX;
-      const dy = touch1.clientY - touch2.clientY;
-      return Math.sqrt(dx * dx + dy * dy);
-    }
+<!--    function startAutoPlay() {-->
+<!--      timer = setInterval(() => showImage(index + 1), 6000);-->
+<!--    }-->
 
-    function setupImageViewer() {
-      const modal = document.getElementById("imageModal");
-      const modalImg = document.getElementById("modalImage");
-      const closeBtn = document.getElementById("closeBtn");
-      const slider = document.getElementById("slider");
-      const zoomCloseBtn = document.getElementById("zoomCloseBtn");
+<!--    function resetTimer() {-->
+<!--      clearInterval(timer);-->
+<!--      startAutoPlay();-->
+<!--    }-->
 
-      // ===== 轮播区域变量 =====
-      let sliderScale = 1;
-      let sliderTranslateX = 0;
-      let sliderTranslateY = 0;
-      let sliderLastDistance = 0;
-      let sliderIsPinching = false;
-      let sliderIsDragging = false;
-      let sliderHasDragged = false; // 记录本次触摸是否拖动过
-      let sliderLastTap = 0; // 记录上次点击时间，用于双击检测
-      let isClosingZoom = false; // 标记是否正在通过×按钮关闭缩放
-      
-      let touchStartX = 0;
-      let touchStartY = 0;
-      let touchStartTime = 0;
+<!--    // 计算两点距离-->
+<!--    function getDistance(touch1, touch2) {-->
+<!--      const dx = touch1.clientX - touch2.clientX;-->
+<!--      const dy = touch1.clientY - touch2.clientY;-->
+<!--      return Math.sqrt(dx * dx + dy * dy);-->
+<!--    }-->
 
-      // ===== 模态框变量 =====
-      let modalScale = 1;
-      let modalTranslateX = 0;
-      let modalTranslateY = 0;
-      let modalLastDistance = 0;
-      let modalIsDragging = false;
-      let modalLastTap = 0;
+<!--    function setupImageViewer() {-->
+<!--      const modal = document.getElementById("imageModal");-->
+<!--      const modalImg = document.getElementById("modalImage");-->
+<!--      const closeBtn = document.getElementById("closeBtn");-->
+<!--      const slider = document.getElementById("slider");-->
+<!--      const zoomCloseBtn = document.getElementById("zoomCloseBtn");-->
 
-      // ========== 轮播区域事件 ==========
-      slider.addEventListener("touchstart", (e) => {
-        isClosingZoom = false; // 重置关闭标记
-        
-        if (e.touches.length === 2) {
-          // 双指缩放 - 暂停轮播
-          sliderIsPinching = true;
-          sliderLastDistance = getDistance(e.touches[0], e.touches[1]);
-          sliderHasDragged = false; // 重置拖动标记
-          clearInterval(timer); // 暂停自动轮播
-        } else if (e.touches.length === 1) {
-          // 单指
-          sliderIsPinching = false;
-          sliderHasDragged = false; // 重置拖动标记
-          touchStartX = e.touches[0].clientX;
-          touchStartY = e.touches[0].clientY;
-          touchStartTime = Date.now();
-          
-          if (sliderScale > 1.1) {
-            sliderIsDragging = true;
-            clearInterval(timer); // 缩放状态下拖动也暂停轮播
-          }
-        }
-      });
+<!--      // ===== 轮播区域变量 =====-->
+<!--      let sliderScale = 1;-->
+<!--      let sliderTranslateX = 0;-->
+<!--      let sliderTranslateY = 0;-->
+<!--      let sliderLastDistance = 0;-->
+<!--      let sliderIsPinching = false;-->
+<!--      let sliderIsDragging = false;-->
+<!--      let sliderHasDragged = false; // 记录本次触摸是否拖动过-->
+<!--      let sliderLastTap = 0; // 记录上次点击时间，用于双击检测-->
+<!--      let isClosingZoom = false; // 标记是否正在通过×按钮关闭缩放-->
+<!--      -->
+<!--      let touchStartX = 0;-->
+<!--      let touchStartY = 0;-->
+<!--      let touchStartTime = 0;-->
 
-      slider.addEventListener("touchmove", (e) => {
-        if (e.touches.length === 2 && sliderIsPinching) {
-          // 双指缩放
-          e.preventDefault();
-          const distance = getDistance(e.touches[0], e.touches[1]);
-          const ratio = distance / sliderLastDistance;
-          sliderScale = Math.min(Math.max(1, sliderScale * ratio), 5);
-          sliderLastDistance = distance;
-          updateSliderTransform();
-          sliderHasDragged = true; // 标记进行了操作
-        } else if (e.touches.length === 1 && sliderIsDragging) {
-          // 拖动查看细节
-          e.preventDefault();
-          sliderTranslateX += e.touches[0].clientX - touchStartX;
-          sliderTranslateY += e.touches[0].clientY - touchStartY;
-          touchStartX = e.touches[0].clientX;
-          touchStartY = e.touches[0].clientY;
-          updateSliderTransform();
-          sliderHasDragged = true; // 标记进行了拖动
-        }
-      });
+<!--      // ===== 模态框变量 =====-->
+<!--      let modalScale = 1;-->
+<!--      let modalTranslateX = 0;-->
+<!--      let modalTranslateY = 0;-->
+<!--      let modalLastDistance = 0;-->
+<!--      let modalIsDragging = false;-->
+<!--      let modalLastTap = 0;-->
 
-      slider.addEventListener("touchend", (e) => {
-        if (e.touches.length === 0) {
-          // 如果正在通过×按钮关闭缩放，跳过所有处理
-          if (isClosingZoom) {
-            sliderIsDragging = false;
-            sliderIsPinching = false;
-            return;
-          }
-          
-          const touchEndX = e.changedTouches[0].clientX;
-          const touchEndY = e.changedTouches[0].clientY;
-          const diffX = touchEndX - touchStartX;
-          const diffY = touchEndY - touchStartY;
-          const absDiffX = Math.abs(diffX);
-          const absDiffY = Math.abs(diffY);
-          const duration = Date.now() - touchStartTime;
-          const currentTime = Date.now();
-          const tapGap = currentTime - sliderLastTap;
+<!--      // ========== 轮播区域事件 ==========-->
+<!--      slider.addEventListener("touchstart", (e) => {-->
+<!--        isClosingZoom = false; // 重置关闭标记-->
+<!--        -->
+<!--        if (e.touches.length === 2) {-->
+<!--          // 双指缩放 - 暂停轮播-->
+<!--          sliderIsPinching = true;-->
+<!--          sliderLastDistance = getDistance(e.touches[0], e.touches[1]);-->
+<!--          sliderHasDragged = false; // 重置拖动标记-->
+<!--          clearInterval(timer); // 暂停自动轮播-->
+<!--        } else if (e.touches.length === 1) {-->
+<!--          // 单指-->
+<!--          sliderIsPinching = false;-->
+<!--          sliderHasDragged = false; // 重置拖动标记-->
+<!--          touchStartX = e.touches[0].clientX;-->
+<!--          touchStartY = e.touches[0].clientY;-->
+<!--          touchStartTime = Date.now();-->
+<!--          -->
+<!--          if (sliderScale > 1.1) {-->
+<!--            sliderIsDragging = true;-->
+<!--            clearInterval(timer); // 缩放状态下拖动也暂停轮播-->
+<!--          }-->
+<!--        }-->
+<!--      });-->
 
-          // 记录触摸开始时的缩放状态
-          const wasZoomed = sliderScale > 1.1;
-          
-          // 处理缩放状态
-          if (wasZoomed) {
-            // 触摸开始时处于缩放状态
-            
-            // 判断是否为轻触（没有拖动、移动很小、时间很短）
-            const isTap = !sliderHasDragged && !sliderIsPinching && absDiffX < 15 && absDiffY < 15 && duration < 400;
-            
-            if (isTap) {
-              // 检测是否为双击
-              if (tapGap < 350 && tapGap > 50) {
-                // 双击：恢复原样并继续轮播
-                sliderScale = 1;
-                sliderTranslateX = 0;
-                sliderTranslateY = 0;
-                updateSliderTransform();
-                startAutoPlay();
-                sliderLastTap = 0; // 重置，避免三击
-                // 不再执行后续逻辑
-              } else {
-                // 单击：记录时间，等待可能的双击
-                sliderLastTap = currentTime;
-                // 保持缩放状态
-              }
-            }
-            // 快速水平滑动（非拖动）：恢复原样并切换图片
-            else if (!sliderHasDragged && absDiffX > 80 && absDiffX > absDiffY && duration < 500) {
-              // 只有快速滑动且没有拖动操作时才切换
-              sliderScale = 1;
-              sliderTranslateX = 0;
-              sliderTranslateY = 0;
-              updateSliderTransform();
-              
-              // 切换图片
-              if (diffX > 0) {
-                showImage(index - 1);
-              } else {
-                showImage(index + 1);
-              }
-              resetTimer();
-              sliderLastTap = 0; // 重置双击计时
-            }
-            // 其他情况（双指缩放结束、拖动查看）：保持缩放，不启动轮播
-            else {
-              // 保持缩放状态，轮播保持暂停
-              // 拖动后重置双击计时
-              if (sliderHasDragged) {
-                sliderLastTap = 0;
-              }
-            }
-          } else {
-            // 触摸开始时未缩放状态
-            
-            // 缩放小于1.1自动恢复
-            if (sliderScale <= 1.1) {
-              sliderScale = 1;
-              sliderTranslateX = 0;
-              sliderTranslateY = 0;
-              updateSliderTransform();
-            }
+<!--      slider.addEventListener("touchmove", (e) => {-->
+<!--        if (e.touches.length === 2 && sliderIsPinching) {-->
+<!--          // 双指缩放-->
+<!--          e.preventDefault();-->
+<!--          const distance = getDistance(e.touches[0], e.touches[1]);-->
+<!--          const ratio = distance / sliderLastDistance;-->
+<!--          sliderScale = Math.min(Math.max(1, sliderScale * ratio), 5);-->
+<!--          sliderLastDistance = distance;-->
+<!--          updateSliderTransform();-->
+<!--          sliderHasDragged = true; // 标记进行了操作-->
+<!--        } else if (e.touches.length === 1 && sliderIsDragging) {-->
+<!--          // 拖动查看细节-->
+<!--          e.preventDefault();-->
+<!--          sliderTranslateX += e.touches[0].clientX - touchStartX;-->
+<!--          sliderTranslateY += e.touches[0].clientY - touchStartY;-->
+<!--          touchStartX = e.touches[0].clientX;-->
+<!--          touchStartY = e.touches[0].clientY;-->
+<!--          updateSliderTransform();-->
+<!--          sliderHasDragged = true; // 标记进行了拖动-->
+<!--        }-->
+<!--      });-->
 
-            // 未缩放状态下的滑动和点击
-            if (sliderScale === 1 && !sliderIsPinching) {
-              if (absDiffX > 50 && duration < 500) {
-                // 滑动切换
-                if (diffX > 0) {
-      showImage(index - 1);
-                } else {
-                  showImage(index + 1);
-                }
-      resetTimer();
-                sliderLastTap = 0; // 重置双击计时
-              } else if (absDiffX < 20 && absDiffY < 20 && duration < 400) {
-                // 检测双击或单击
-                if (tapGap < 350 && tapGap > 50) {
-                  // 双击：不做处理（避免误触发）
-                  sliderLastTap = 0;
-                } else if (tapGap > 350 || tapGap === 0) {
-                  // 单击：打开模态框
-                  const activeImg = slider.querySelector("img.active");
-                  if (activeImg) {
-                    openModal(activeImg.src);
-                  }
-                  sliderLastTap = currentTime;
-                }
-              }
-            }
-          }
+<!--      slider.addEventListener("touchend", (e) => {-->
+<!--        if (e.touches.length === 0) {-->
+<!--          // 如果正在通过×按钮关闭缩放，跳过所有处理-->
+<!--          if (isClosingZoom) {-->
+<!--            sliderIsDragging = false;-->
+<!--            sliderIsPinching = false;-->
+<!--            return;-->
+<!--          }-->
+<!--          -->
+<!--          const touchEndX = e.changedTouches[0].clientX;-->
+<!--          const touchEndY = e.changedTouches[0].clientY;-->
+<!--          const diffX = touchEndX - touchStartX;-->
+<!--          const diffY = touchEndY - touchStartY;-->
+<!--          const absDiffX = Math.abs(diffX);-->
+<!--          const absDiffY = Math.abs(diffY);-->
+<!--          const duration = Date.now() - touchStartTime;-->
+<!--          const currentTime = Date.now();-->
+<!--          const tapGap = currentTime - sliderLastTap;-->
 
-          sliderIsDragging = false;
-          sliderIsPinching = false;
-          // 注意：不重置 sliderHasDragged，因为下次 touchstart 会重置
-        }
-      });
+<!--          // 记录触摸开始时的缩放状态-->
+<!--          const wasZoomed = sliderScale > 1.1;-->
+<!--          -->
+<!--          // 处理缩放状态-->
+<!--          if (wasZoomed) {-->
+<!--            // 触摸开始时处于缩放状态-->
+<!--            -->
+<!--            // 判断是否为轻触（没有拖动、移动很小、时间很短）-->
+<!--            const isTap = !sliderHasDragged && !sliderIsPinching && absDiffX < 15 && absDiffY < 15 && duration < 400;-->
+<!--            -->
+<!--            if (isTap) {-->
+<!--              // 检测是否为双击-->
+<!--              if (tapGap < 350 && tapGap > 50) {-->
+<!--                // 双击：恢复原样并继续轮播-->
+<!--                sliderScale = 1;-->
+<!--                sliderTranslateX = 0;-->
+<!--                sliderTranslateY = 0;-->
+<!--                updateSliderTransform();-->
+<!--                startAutoPlay();-->
+<!--                sliderLastTap = 0; // 重置，避免三击-->
+<!--                // 不再执行后续逻辑-->
+<!--              } else {-->
+<!--                // 单击：记录时间，等待可能的双击-->
+<!--                sliderLastTap = currentTime;-->
+<!--                // 保持缩放状态-->
+<!--              }-->
+<!--            }-->
+<!--            // 快速水平滑动（非拖动）：恢复原样并切换图片-->
+<!--            else if (!sliderHasDragged && absDiffX > 80 && absDiffX > absDiffY && duration < 500) {-->
+<!--              // 只有快速滑动且没有拖动操作时才切换-->
+<!--              sliderScale = 1;-->
+<!--              sliderTranslateX = 0;-->
+<!--              sliderTranslateY = 0;-->
+<!--              updateSliderTransform();-->
+<!--              -->
+<!--              // 切换图片-->
+<!--              if (diffX > 0) {-->
+<!--                showImage(index - 1);-->
+<!--              } else {-->
+<!--                showImage(index + 1);-->
+<!--              }-->
+<!--              resetTimer();-->
+<!--              sliderLastTap = 0; // 重置双击计时-->
+<!--            }-->
+<!--            // 其他情况（双指缩放结束、拖动查看）：保持缩放，不启动轮播-->
+<!--            else {-->
+<!--              // 保持缩放状态，轮播保持暂停-->
+<!--              // 拖动后重置双击计时-->
+<!--              if (sliderHasDragged) {-->
+<!--                sliderLastTap = 0;-->
+<!--              }-->
+<!--            }-->
+<!--          } else {-->
+<!--            // 触摸开始时未缩放状态-->
+<!--            -->
+<!--            // 缩放小于1.1自动恢复-->
+<!--            if (sliderScale <= 1.1) {-->
+<!--              sliderScale = 1;-->
+<!--              sliderTranslateX = 0;-->
+<!--              sliderTranslateY = 0;-->
+<!--              updateSliderTransform();-->
+<!--            }-->
 
-      // PC端点击
-      slider.addEventListener("click", (e) => {
-        // 只要点击的是图片且未缩放，就打开当前活动图片
-        if (e.target.tagName === "IMG" && sliderScale === 1) {
-          const activeImg = slider.querySelector("img.active");
-          if (activeImg) {
-            openModal(activeImg.src);
-          }
-        }
-      });
+<!--            // 未缩放状态下的滑动和点击-->
+<!--            if (sliderScale === 1 && !sliderIsPinching) {-->
+<!--              if (absDiffX > 50 && duration < 500) {-->
+<!--                // 滑动切换-->
+<!--                if (diffX > 0) {-->
+<!--      showImage(index - 1);-->
+<!--                } else {-->
+<!--                  showImage(index + 1);-->
+<!--                }-->
+<!--      resetTimer();-->
+<!--                sliderLastTap = 0; // 重置双击计时-->
+<!--              } else if (absDiffX < 20 && absDiffY < 20 && duration < 400) {-->
+<!--                // 检测双击或单击-->
+<!--                if (tapGap < 350 && tapGap > 50) {-->
+<!--                  // 双击：不做处理（避免误触发）-->
+<!--                  sliderLastTap = 0;-->
+<!--                } else if (tapGap > 350 || tapGap === 0) {-->
+<!--                  // 单击：打开模态框-->
+<!--                  const activeImg = slider.querySelector("img.active");-->
+<!--                  if (activeImg) {-->
+<!--                    openModal(activeImg.src);-->
+<!--                  }-->
+<!--                  sliderLastTap = currentTime;-->
+<!--                }-->
+<!--              }-->
+<!--            }-->
+<!--          }-->
 
-      function updateSliderTransform() {
-        const activeImg = slider.querySelector("img.active");
-        if (activeImg) {
-          activeImg.style.transform = `translate(${sliderTranslateX}px, ${sliderTranslateY}px) scale(${sliderScale})`;
-        }
-        
-        // 根据缩放状态显示或隐藏关闭按钮
-        if (sliderScale > 1.1) {
-          zoomCloseBtn.classList.add("show");
-        } else {
-          zoomCloseBtn.classList.remove("show");
-        }
-      }
+<!--          sliderIsDragging = false;-->
+<!--          sliderIsPinching = false;-->
+<!--          // 注意：不重置 sliderHasDragged，因为下次 touchstart 会重置-->
+<!--        }-->
+<!--      });-->
 
-      window.resetSliderZoom = function() {
-        sliderScale = 1;
-        sliderTranslateX = 0;
-        sliderTranslateY = 0;
-        sliderIsPinching = false;
-        sliderIsDragging = false;
-        sliderHasDragged = false;
-        sliderLastTap = 0;
-        updateSliderTransform(); // 更新按钮显示状态
-      };
+<!--      // PC端点击-->
+<!--      slider.addEventListener("click", (e) => {-->
+<!--        // 只要点击的是图片且未缩放，就打开当前活动图片-->
+<!--        if (e.target.tagName === "IMG" && sliderScale === 1) {-->
+<!--          const activeImg = slider.querySelector("img.active");-->
+<!--          if (activeImg) {-->
+<!--            openModal(activeImg.src);-->
+<!--          }-->
+<!--        }-->
+<!--      });-->
 
-      // 关闭按钮点击事件（PC端）
-      zoomCloseBtn.addEventListener("click", () => {
-        isClosingZoom = true; // 设置标记
-        sliderScale = 1;
-        sliderTranslateX = 0;
-        sliderTranslateY = 0;
-        updateSliderTransform();
-        startAutoPlay(); // 恢复轮播
-        sliderLastTap = 0;
-        
-        // 100ms后重置标记
-        setTimeout(() => {
-          isClosingZoom = false;
-        }, 100);
-      });
+<!--      function updateSliderTransform() {-->
+<!--        const activeImg = slider.querySelector("img.active");-->
+<!--        if (activeImg) {-->
+<!--          activeImg.style.transform = `translate(${sliderTranslateX}px, ${sliderTranslateY}px) scale(${sliderScale})`;-->
+<!--        }-->
+<!--        -->
+<!--        // 根据缩放状态显示或隐藏关闭按钮-->
+<!--        if (sliderScale > 1.1) {-->
+<!--          zoomCloseBtn.classList.add("show");-->
+<!--        } else {-->
+<!--          zoomCloseBtn.classList.remove("show");-->
+<!--        }-->
+<!--      }-->
 
-      // 防止关闭按钮的触摸事件冒泡到slider
-      zoomCloseBtn.addEventListener("touchstart", (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        isClosingZoom = true; // 设置标记
-      });
-      
-      zoomCloseBtn.addEventListener("touchend", (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        
-        // 点击关闭按钮
-        sliderScale = 1;
-        sliderTranslateX = 0;
-        sliderTranslateY = 0;
-        updateSliderTransform();
-        startAutoPlay(); // 恢复轮播
-        sliderLastTap = 0;
-        
-        // 100ms后重置标记
-        setTimeout(() => {
-          isClosingZoom = false;
-        }, 100);
-      });
+<!--      window.resetSliderZoom = function() {-->
+<!--        sliderScale = 1;-->
+<!--        sliderTranslateX = 0;-->
+<!--        sliderTranslateY = 0;-->
+<!--        sliderIsPinching = false;-->
+<!--        sliderIsDragging = false;-->
+<!--        sliderHasDragged = false;-->
+<!--        sliderLastTap = 0;-->
+<!--        updateSliderTransform(); // 更新按钮显示状态-->
+<!--      };-->
 
-      // ========== 模态框功能 ==========
-      function openModal(imgSrc) {
-        modal.classList.add("show");
-        modalScale = 1;
-        modalTranslateX = 0;
-        modalTranslateY = 0;
-        
-        // 先设置src
-        modalImg.src = imgSrc;
-        
-        // 确保图片可见并重置transform
-        modalImg.style.opacity = "1";
-        modalImg.style.visibility = "visible";
-        modalImg.classList.remove("no-transition");
-        updateModalTransform();
-        
-        clearInterval(timer);
-      }
+<!--      // 关闭按钮点击事件（PC端）-->
+<!--      zoomCloseBtn.addEventListener("click", () => {-->
+<!--        isClosingZoom = true; // 设置标记-->
+<!--        sliderScale = 1;-->
+<!--        sliderTranslateX = 0;-->
+<!--        sliderTranslateY = 0;-->
+<!--        updateSliderTransform();-->
+<!--        startAutoPlay(); // 恢复轮播-->
+<!--        sliderLastTap = 0;-->
+<!--        -->
+<!--        // 100ms后重置标记-->
+<!--        setTimeout(() => {-->
+<!--          isClosingZoom = false;-->
+<!--        }, 100);-->
+<!--      });-->
 
-      function closeModal() {
-        modal.classList.remove("show");
-        modalScale = 1;
-        modalTranslateX = 0;
-        modalTranslateY = 0;
-        updateModalTransform();
-        startAutoPlay();
-      }
+<!--      // 防止关闭按钮的触摸事件冒泡到slider-->
+<!--      zoomCloseBtn.addEventListener("touchstart", (e) => {-->
+<!--        e.stopPropagation();-->
+<!--        e.preventDefault();-->
+<!--        isClosingZoom = true; // 设置标记-->
+<!--      });-->
+<!--      -->
+<!--      zoomCloseBtn.addEventListener("touchend", (e) => {-->
+<!--        e.stopPropagation();-->
+<!--        e.preventDefault();-->
+<!--        -->
+<!--        // 点击关闭按钮-->
+<!--        sliderScale = 1;-->
+<!--        sliderTranslateX = 0;-->
+<!--        sliderTranslateY = 0;-->
+<!--        updateSliderTransform();-->
+<!--        startAutoPlay(); // 恢复轮播-->
+<!--        sliderLastTap = 0;-->
+<!--        -->
+<!--        // 100ms后重置标记-->
+<!--        setTimeout(() => {-->
+<!--          isClosingZoom = false;-->
+<!--        }, 100);-->
+<!--      });-->
 
-      closeBtn.addEventListener("click", closeModal);
-      modal.addEventListener("click", (e) => {
-        if (e.target === modal) {
-          closeModal();
-        }
-      });
+<!--      // ========== 模态框功能 ==========-->
+<!--      function openModal(imgSrc) {-->
+<!--        modal.classList.add("show");-->
+<!--        modalScale = 1;-->
+<!--        modalTranslateX = 0;-->
+<!--        modalTranslateY = 0;-->
+<!--        -->
+<!--        // 先设置src-->
+<!--        modalImg.src = imgSrc;-->
+<!--        -->
+<!--        // 确保图片可见并重置transform-->
+<!--        modalImg.style.opacity = "1";-->
+<!--        modalImg.style.visibility = "visible";-->
+<!--        modalImg.classList.remove("no-transition");-->
+<!--        updateModalTransform();-->
+<!--        -->
+<!--        clearInterval(timer);-->
+<!--      }-->
 
-      // PC端双击
-      modalImg.addEventListener("dblclick", (e) => {
-        if (modalScale === 1) {
-          modalScale = 2.5;
-          const rect = modalImg.getBoundingClientRect();
-          const x = e.clientX - rect.left;
-          const y = e.clientY - rect.top;
-          modalTranslateX = (rect.width / 2 - x) * 1.5;
-          modalTranslateY = (rect.height / 2 - y) * 1.5;
-        } else {
-          modalScale = 1;
-          modalTranslateX = 0;
-          modalTranslateY = 0;
-        }
-        updateModalTransform();
-      });
+<!--      function closeModal() {-->
+<!--        modal.classList.remove("show");-->
+<!--        modalScale = 1;-->
+<!--        modalTranslateX = 0;-->
+<!--        modalTranslateY = 0;-->
+<!--        updateModalTransform();-->
+<!--        startAutoPlay();-->
+<!--      }-->
 
-      // 模态框触摸事件
-      let modalTouchStartX = 0;
-      let modalTouchStartY = 0;
-      let modalIsPinching = false;
+<!--      closeBtn.addEventListener("click", closeModal);-->
+<!--      modal.addEventListener("click", (e) => {-->
+<!--        if (e.target === modal) {-->
+<!--          closeModal();-->
+<!--        }-->
+<!--      });-->
 
-      modalImg.addEventListener("touchstart", (e) => {
-        // 触摸开始时禁用过渡效果
-        modalImg.classList.add("no-transition");
-        
-        if (e.touches.length === 2) {
-          // 双指缩放
-          modalIsPinching = true;
-          modalLastDistance = getDistance(e.touches[0], e.touches[1]);
-        } else if (e.touches.length === 1) {
-          // 单指
-          modalIsPinching = false;
-          modalTouchStartX = e.touches[0].clientX;
-          modalTouchStartY = e.touches[0].clientY;
-          
-          if (modalScale > 1) {
-            modalIsDragging = true;
-          }
-        }
-      });
+<!--      // PC端双击-->
+<!--      modalImg.addEventListener("dblclick", (e) => {-->
+<!--        if (modalScale === 1) {-->
+<!--          modalScale = 2.5;-->
+<!--          const rect = modalImg.getBoundingClientRect();-->
+<!--          const x = e.clientX - rect.left;-->
+<!--          const y = e.clientY - rect.top;-->
+<!--          modalTranslateX = (rect.width / 2 - x) * 1.5;-->
+<!--          modalTranslateY = (rect.height / 2 - y) * 1.5;-->
+<!--        } else {-->
+<!--          modalScale = 1;-->
+<!--          modalTranslateX = 0;-->
+<!--          modalTranslateY = 0;-->
+<!--        }-->
+<!--        updateModalTransform();-->
+<!--      });-->
 
-      modalImg.addEventListener("touchmove", (e) => {
-        if (e.touches.length === 2 && modalIsPinching) {
-          // 双指缩放
-          e.preventDefault();
-          const distance = getDistance(e.touches[0], e.touches[1]);
-          const ratio = distance / modalLastDistance;
-          modalScale = Math.min(Math.max(1, modalScale * ratio), 5);
-          modalLastDistance = distance;
-          updateModalTransform();
-        } else if (modalIsDragging && e.touches.length === 1) {
-          // 拖动
-          e.preventDefault();
-          const deltaX = e.touches[0].clientX - modalTouchStartX;
-          const deltaY = e.touches[0].clientY - modalTouchStartY;
-          modalTranslateX += deltaX;
-          modalTranslateY += deltaY;
-          modalTouchStartX = e.touches[0].clientX;
-          modalTouchStartY = e.touches[0].clientY;
-          updateModalTransform();
-        }
-      });
+<!--      // 模态框触摸事件-->
+<!--      let modalTouchStartX = 0;-->
+<!--      let modalTouchStartY = 0;-->
+<!--      let modalIsPinching = false;-->
 
-      modalImg.addEventListener("touchend", (e) => {
-        const currentTime = Date.now();
-        const tapGap = currentTime - modalLastTap;
+<!--      modalImg.addEventListener("touchstart", (e) => {-->
+<!--        // 触摸开始时禁用过渡效果-->
+<!--        modalImg.classList.add("no-transition");-->
+<!--        -->
+<!--        if (e.touches.length === 2) {-->
+<!--          // 双指缩放-->
+<!--          modalIsPinching = true;-->
+<!--          modalLastDistance = getDistance(e.touches[0], e.touches[1]);-->
+<!--        } else if (e.touches.length === 1) {-->
+<!--          // 单指-->
+<!--          modalIsPinching = false;-->
+<!--          modalTouchStartX = e.touches[0].clientX;-->
+<!--          modalTouchStartY = e.touches[0].clientY;-->
+<!--          -->
+<!--          if (modalScale > 1) {-->
+<!--            modalIsDragging = true;-->
+<!--          }-->
+<!--        }-->
+<!--      });-->
 
-        if (e.touches.length === 0) {
-          modalIsDragging = false;
-          
-          // 触摸结束后移除no-transition类，恢复过渡效果
-          modalImg.classList.remove("no-transition");
+<!--      modalImg.addEventListener("touchmove", (e) => {-->
+<!--        if (e.touches.length === 2 && modalIsPinching) {-->
+<!--          // 双指缩放-->
+<!--          e.preventDefault();-->
+<!--          const distance = getDistance(e.touches[0], e.touches[1]);-->
+<!--          const ratio = distance / modalLastDistance;-->
+<!--          modalScale = Math.min(Math.max(1, modalScale * ratio), 5);-->
+<!--          modalLastDistance = distance;-->
+<!--          updateModalTransform();-->
+<!--        } else if (modalIsDragging && e.touches.length === 1) {-->
+<!--          // 拖动-->
+<!--          e.preventDefault();-->
+<!--          const deltaX = e.touches[0].clientX - modalTouchStartX;-->
+<!--          const deltaY = e.touches[0].clientY - modalTouchStartY;-->
+<!--          modalTranslateX += deltaX;-->
+<!--          modalTranslateY += deltaY;-->
+<!--          modalTouchStartX = e.touches[0].clientX;-->
+<!--          modalTouchStartY = e.touches[0].clientY;-->
+<!--          updateModalTransform();-->
+<!--        }-->
+<!--      });-->
 
-          // 只有真的缩小到1以下才重置
-          if (modalScale < 1) {
-            modalScale = 1;
-            modalTranslateX = 0;
-            modalTranslateY = 0;
-            updateModalTransform();
-          }
+<!--      modalImg.addEventListener("touchend", (e) => {-->
+<!--        const currentTime = Date.now();-->
+<!--        const tapGap = currentTime - modalLastTap;-->
 
-          // 双击检测（只在非缩放操作时）
-          if (tapGap < 300 && tapGap > 0 && !modalIsPinching) {
-            if (modalScale === 1) {
-              modalScale = 2.5;
-          } else {
-              modalScale = 1;
-              modalTranslateX = 0;
-              modalTranslateY = 0;
-            }
-            updateModalTransform();
-          }
+<!--        if (e.touches.length === 0) {-->
+<!--          modalIsDragging = false;-->
+<!--          -->
+<!--          // 触摸结束后移除no-transition类，恢复过渡效果-->
+<!--          modalImg.classList.remove("no-transition");-->
 
-          modalIsPinching = false;
-        }
+<!--          // 只有真的缩小到1以下才重置-->
+<!--          if (modalScale < 1) {-->
+<!--            modalScale = 1;-->
+<!--            modalTranslateX = 0;-->
+<!--            modalTranslateY = 0;-->
+<!--            updateModalTransform();-->
+<!--          }-->
 
-        // 重置双指距离
-        if (e.touches.length < 2) {
-          modalLastDistance = 0;
-        }
+<!--          // 双击检测（只在非缩放操作时）-->
+<!--          if (tapGap < 300 && tapGap > 0 && !modalIsPinching) {-->
+<!--            if (modalScale === 1) {-->
+<!--              modalScale = 2.5;-->
+<!--          } else {-->
+<!--              modalScale = 1;-->
+<!--              modalTranslateX = 0;-->
+<!--              modalTranslateY = 0;-->
+<!--            }-->
+<!--            updateModalTransform();-->
+<!--          }-->
 
-        modalLastTap = currentTime;
-      });
+<!--          modalIsPinching = false;-->
+<!--        }-->
 
-      // 鼠标滚轮
-      modalImg.addEventListener("wheel", (e) => {
-        e.preventDefault();
-        const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        modalScale = Math.min(Math.max(1, modalScale * delta), 5);
-        if (modalScale === 1) {
-          modalTranslateX = 0;
-          modalTranslateY = 0;
-        }
-        updateModalTransform();
-      });
+<!--        // 重置双指距离-->
+<!--        if (e.touches.length < 2) {-->
+<!--          modalLastDistance = 0;-->
+<!--        }-->
 
-      // 鼠标拖动
-      let mouseStartX = 0;
-      let mouseStartY = 0;
-      let mouseDragging = false;
+<!--        modalLastTap = currentTime;-->
+<!--      });-->
 
-      modalImg.addEventListener("mousedown", (e) => {
-        if (modalScale > 1) {
-          mouseDragging = true;
-          mouseStartX = e.clientX - modalTranslateX;
-          mouseStartY = e.clientY - modalTranslateY;
-          modalImg.style.cursor = "grabbing";
-          modalImg.classList.add("no-transition"); // 禁用过渡
-        }
-      });
+<!--      // 鼠标滚轮-->
+<!--      modalImg.addEventListener("wheel", (e) => {-->
+<!--        e.preventDefault();-->
+<!--        const delta = e.deltaY > 0 ? 0.9 : 1.1;-->
+<!--        modalScale = Math.min(Math.max(1, modalScale * delta), 5);-->
+<!--        if (modalScale === 1) {-->
+<!--          modalTranslateX = 0;-->
+<!--          modalTranslateY = 0;-->
+<!--        }-->
+<!--        updateModalTransform();-->
+<!--      });-->
 
-      document.addEventListener("mousemove", (e) => {
-        if (mouseDragging) {
-          modalTranslateX = e.clientX - mouseStartX;
-          modalTranslateY = e.clientY - mouseStartY;
-          updateModalTransform();
-        }
-      });
+<!--      // 鼠标拖动-->
+<!--      let mouseStartX = 0;-->
+<!--      let mouseStartY = 0;-->
+<!--      let mouseDragging = false;-->
 
-      document.addEventListener("mouseup", () => {
-        if (mouseDragging) {
-          mouseDragging = false;
-          modalImg.style.cursor = modalScale > 1 ? "grab" : "default";
-          modalImg.classList.remove("no-transition"); // 恢复过渡
-        }
-      });
+<!--      modalImg.addEventListener("mousedown", (e) => {-->
+<!--        if (modalScale > 1) {-->
+<!--          mouseDragging = true;-->
+<!--          mouseStartX = e.clientX - modalTranslateX;-->
+<!--          mouseStartY = e.clientY - modalTranslateY;-->
+<!--          modalImg.style.cursor = "grabbing";-->
+<!--          modalImg.classList.add("no-transition"); // 禁用过渡-->
+<!--        }-->
+<!--      });-->
 
-      function updateModalTransform() {
-        // 始终应用transform，即使是初始值
-        const transform = `translate(${modalTranslateX}px, ${modalTranslateY}px) scale(${modalScale})`;
-        modalImg.style.transform = transform;
-        modalImg.style.webkitTransform = transform; // Safari兼容
-        modalImg.style.cursor = modalScale > 1 ? "grab" : "default";
-        
-        // 确保图片可见
-        modalImg.style.display = "block";
-        modalImg.style.visibility = "visible";
-        modalImg.style.opacity = "1";
-      }
-    }
+<!--      document.addEventListener("mousemove", (e) => {-->
+<!--        if (mouseDragging) {-->
+<!--          modalTranslateX = e.clientX - mouseStartX;-->
+<!--          modalTranslateY = e.clientY - mouseStartY;-->
+<!--          updateModalTransform();-->
+<!--        }-->
+<!--      });-->
 
-    loadImages();
-  </script>
-</body>
-</html>
+<!--      document.addEventListener("mouseup", () => {-->
+<!--        if (mouseDragging) {-->
+<!--          mouseDragging = false;-->
+<!--          modalImg.style.cursor = modalScale > 1 ? "grab" : "default";-->
+<!--          modalImg.classList.remove("no-transition"); // 恢复过渡-->
+<!--        }-->
+<!--      });-->
+
+<!--      function updateModalTransform() {-->
+<!--        // 始终应用transform，即使是初始值-->
+<!--        const transform = `translate(${modalTranslateX}px, ${modalTranslateY}px) scale(${modalScale})`;-->
+<!--        modalImg.style.transform = transform;-->
+<!--        modalImg.style.webkitTransform = transform; // Safari兼容-->
+<!--        modalImg.style.cursor = modalScale > 1 ? "grab" : "default";-->
+<!--        -->
+<!--        // 确保图片可见-->
+<!--        modalImg.style.display = "block";-->
+<!--        modalImg.style.visibility = "visible";-->
+<!--        modalImg.style.opacity = "1";-->
+<!--      }-->
+<!--    }-->
+
+<!--    loadImages();-->
+<!--  </script>-->
+<!--</body>-->
+<!--</html>-->
