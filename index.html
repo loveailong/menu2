@@ -153,14 +153,18 @@
       transform: translateX(-50%);
       background-color: rgba(0, 0, 0, 0.7);
       color: #fff;
-      padding: 8px 20px;
-      border-radius: 20px;
-      font-size: 16px;
+      padding: 10px 24px;
+      border-radius: 25px;
+      font-size: 15px;
       cursor: pointer;
       z-index: 998;
       user-select: none;
       transition: all 0.3s ease;
       border: 2px solid rgba(255, 255, 255, 0.3);
+      white-space: nowrap;
+      max-width: 90vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .page-indicator:hover {
       background-color: rgba(255, 255, 255, 0.2);
@@ -220,12 +224,13 @@
     }
     .jump-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
       gap: 12px;
       padding: 10px;
     }
     .jump-item {
-      aspect-ratio: 1;
+      min-height: 50px;
+      padding: 12px 16px;
       background-color: rgba(255, 255, 255, 0.1);
       border: 2px solid rgba(255, 255, 255, 0.3);
       border-radius: 12px;
@@ -233,11 +238,13 @@
       align-items: center;
       justify-content: center;
       color: #fff;
-      font-size: 18px;
+      font-size: 16px;
       font-weight: bold;
       cursor: pointer;
       transition: all 0.3s ease;
       user-select: none;
+      text-align: center;
+      word-break: break-word;
     }
     .jump-item:hover {
       background-color: rgba(255, 255, 255, 0.25);
@@ -305,6 +312,16 @@
     const repo = "menu";             // 👈 修改为你的仓库名
     const folder = "images";         // 👈 图片所在文件夹名
 
+
+
+
+    //修改
+    // 图片名称配置（可随时修改）
+    const imageNames = [
+      "one", "two", "three", "four", "five", 
+      "six", "seven", "eight", "nine"
+    ];
+
     let index = 0;
     let images = [];
     let timer;
@@ -362,7 +379,8 @@
     function updatePageIndicator() {
       const pageIndicator = document.getElementById("pageIndicator");
       if (pageIndicator && images.length > 0) {
-        pageIndicator.textContent = `${index + 1}/${images.length}`;
+        const currentName = imageNames[index] || `图片${index + 1}`;
+        pageIndicator.textContent = `${currentName} (${index + 1}/${images.length})`;
       }
     }
     
@@ -373,7 +391,10 @@
       for (let i = 0; i < images.length; i++) {
         const item = document.createElement("div");
         item.className = "jump-item";
-        item.textContent = i + 1;
+        
+        // 使用配置的名字或默认名字
+        const name = imageNames[i] || `图片${i + 1}`;
+        item.textContent = name;
         item.dataset.index = i;
         
         item.addEventListener("click", () => {
