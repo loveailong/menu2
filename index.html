@@ -251,16 +251,16 @@
             transform: scale(0.9);
         }
 
-         .jump-grid {
-             display: grid;
-             grid-template-columns: repeat(2, 1fr);
-             gap: 12px;
-             padding: 5px;
-             overflow-y: auto;
-             overflow-x: hidden;
-             max-height: calc(2 * 60px + 12px);
-             -webkit-overflow-scrolling: touch;
-         }
+        .jump-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            padding: 5px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            max-height: calc(2 * 60px + 12px);
+            -webkit-overflow-scrolling: touch;
+        }
 
         .jump-item {
             height: 60px;
@@ -375,13 +375,12 @@
     //修改
     // 图片名称配置（可随时修改）
     const imageNames = [
-        "1_ENTRÉES", "2_SOUPE_(2)", "3_SOUPE_VIANDES_SPECIALES_&_SALADES",
-        "4_OMELETTE_&_RIZ_CANTONAIS", "5_RIZ_CANTONAIS_&_CHOWMING_ET_SPAGHETTIS",
-        "6_CHOWMING_ET_SPAGHETTIS_&_SPAGHETTIS", "7_LÉGUMES_&_CANARD",
-        "8_PORC", "9_POULET_&_BOEUF", "10_CREVETTES", "11_PLAQUE_CHAUFFANTE_&_PLATS",
-        "12_FILETS_DE_POISSON", "13_CALAMARS", "14_BOISSONS",
-        "15_VINS_ET_SPIRITUEUX", "16_DESSERT"
-
+        "ENTRÉES", "SOUPE(2)", "SOUPE VIANDES SPECIALES & SALADES",
+        "OMELETTE & RIZ CANTONAIS", "RIZ CANTONAIS & CHOWMING ET SPAGHETTIS",
+        "CHOWMING ET SPAGHETTIS & SPAGHETTIS", "LÉGUMES & CANARD",
+        "PORC", "POULET & BOEUF", "CREVETTES", "PLAQUE CHAUFFANTE & PLATS",
+        "FILETS DE POISSON", "CALAMARS", "BOISSONS",
+        "VINS ET SPIRITUEUX", "DESSERT"
     ];
 
     let index = 0;
