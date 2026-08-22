@@ -16,6 +16,34 @@
             flex-direction: column;
         }
 
+        .service-expiry-notice {
+            display: none;
+            box-sizing: border-box;
+            width: min(90vw, 680px);
+            padding: 32px 28px;
+            color: #fff;
+            font-size: clamp(22px, 4vw, 36px);
+            line-height: 1.6;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 24px rgba(255, 255, 255, 0.15);
+        }
+
+        body.service-expired .service-expiry-notice {
+            display: block;
+        }
+
+        body.service-expired .slider,
+        body.service-expired .zoom-close-btn,
+        body.service-expired .page-indicator,
+        body.service-expired .jump-overlay,
+        body.service-expired .jump-panel,
+        body.service-expired .modal {
+            display: none !important;
+        }
+
         .slider {
             width: 90vw;
             height: 95vh;
@@ -337,6 +365,10 @@
     </style>
 </head>
 <body>
+<div class="service-expiry-notice" id="serviceExpiryNotice">
+    您的云服务即将到期，请续期维护使用期限。
+</div>
+
 <div class="slider" id="slider"></div>
 
 <!-- 缩放关闭按钮 -->
@@ -370,6 +402,8 @@
     const username = "loveailong";   // 👈 修改为你的 GitHub 用户名
     const repo = "menu2";             // 👈 修改为你的仓库名
     const folder = "images";         // 👈 图片所在文件夹名
+    // 固定截止时间：2026 年 8 月 20 日 23:59:59。此时间之后仅显示续期提示。
+    const serviceExpiryTime = new Date(2026, 7, 20, 23, 59, 59).getTime();
 
 
     //修改
@@ -1005,7 +1039,11 @@
         }
     }
 
-    loadImages();
+    if (Date.now() > serviceExpiryTime) {
+        document.body.classList.add("service-expired");
+    } else {
+        loadImages();
+    }
 </script>
 </body>
 </html>
